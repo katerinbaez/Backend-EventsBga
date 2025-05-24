@@ -1,6 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const https = require('https');
+const fs = require('fs');
 const sequelize = require('./config/database');
 const authRoutes = require('./routes/auth.routes');
 const notificationRoutes = require('./routes/notificationRoutes');
@@ -225,25 +228,63 @@ if (process.env.NODE_ENV !== 'test') {
     });
 }
 */
-// Crear un servidor HTTP que podamos cerrar durante las pruebas
-let server;
+// Crear servidores HTTP y HTTPS que podamos cerrar durante las pruebas
+let httpServer;
+let httpsServer;
 
-// Si no estamos en modo de prueba, iniciar el servidor normalmente
+// Si no estamos en modo de prueba, iniciar los servidores normalmente
 if (process.env.NODE_ENV !== 'test') {
-    server = app.listen(PORT, '0.0.0.0', () => {
-        console.log(`\n🚀 Servidor corriendo en http://localhost:${PORT}`);
+    // Iniciar servidor HTTP
+    httpServer = http.createServer(app);
+    httpServer.listen(PORT, '0.0.0.0', () => {
+        console.log(`\n🚀 Servidor HTTP corriendo en http://localhost:${PORT}`);
         console.log(` También accesible en http://192.168.1.7:${PORT}`);
     });
+    
+    // En producción (Railway, Heroku, etc.), estos servicios manejan HTTPS automáticamente
+    // No necesitamos configurar HTTPS manualmente, ya que el proveedor de hosting lo hace por nosotros
+    console.log('\n📝 Nota: En producción, el proveedor de hosting (Railway, Heroku, etc.) maneja HTTPS automáticamente');
+    console.log('No es necesario configurar certificados SSL manualmente para despliegue en producción.');
+    
+    // Si estamos en desarrollo local y queremos probar con HTTPS
+    if (process.env.NODE_ENV === 'development') {
+        try {
+            // Ruta a los certificados (debes crearlos primero)
+            const privateKeyPath = './certificates/key.pem';
+            const certificatePath = './certificates/cert.pem';
+            
+            // Verificar si existen los certificados
+            if (fs.existsSync(privateKeyPath) && fs.existsSync(certificatePath)) {
+                const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
+                const certificate = fs.readFileSync(certificatePath, 'utf8');
+                const credentials = { key: privateKey, cert: certificate };
+                
+                // Crear servidor HTTPS
+                httpsServer = https.createServer(credentials, app);
+                const HTTPS_PORT = process.env.HTTPS_PORT || 5443;
+                
+                httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
+                    console.log(`🔒 Servidor HTTPS corriendo en https://localhost:${HTTPS_PORT}`);
+                    console.log(` También accesible en https://192.168.1.7:${HTTPS_PORT}`);
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error al iniciar servidor HTTPS:', error.message);
+        }
+    }
     
     // Exportar solo la aplicación en modo normal
     module.exports = app;
 } else {
     // En modo de prueba, exportamos la aplicación y la función para cerrar
     
-    // Función para cerrar el servidor y las conexiones
+    // Función para cerrar los servidores y las conexiones
     const closeServer = async () => {
-        if (server) {
-            await new Promise((resolve) => server.close(resolve));
+        if (httpServer) {
+            await new Promise((resolve) => httpServer.close(resolve));
+        }
+        if (httpsServer) {
+            await new Promise((resolve) => httpsServer.close(resolve));
         }
         await sequelize.close();
     };
