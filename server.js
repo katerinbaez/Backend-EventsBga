@@ -35,23 +35,16 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Configuración de CORS con headers personalizados
 app.use(cors({
-    origin: [
-        'http://localhost:3000',
-        'http://192.168.0.101:3000',
-        'http://localhost:5000',
-        'http://192.168.0.101:5000',
-        'http://192.168.1.7:5000',
-        'exp://192.168.1.7:8081'
-    ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    credentials: true,
-    allowedHeaders: [
-        'Content-Type', 
-        'Authorization', 
-        'Origin',
-        'x-user-role',
-        'x-user-email'
-    ]
+  origin: '*', // Permite cualquier origen porque la app móvil no está limitada por CORS
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Origin',
+    'x-user-role',
+    'x-user-email'
+  ]
+  // NO uses credentials: true si usas origin: '*'
 }));
 
 // Caché para evitar logs repetitivos
