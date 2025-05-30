@@ -24,5 +24,6 @@ router.put('/profile/:userId', upload.single('fotoPerfil'), artistController.upd
 
 // Subir imagen de perfil
 router.put('/upload-profile-image/:userId', upload.single('profileImage'), artistController.uploadProfileImage);
-
+// Eliminar perfil de artista
+router.delete('/profile/:userId', artistController.deleteArtistProfile);
 module.exports = router;
