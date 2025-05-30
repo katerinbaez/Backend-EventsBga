@@ -414,3 +414,47 @@ exports.getArtistProfileById = async (req, res) => {
         });
     }
 };
+
+// Eliminar perfil de artista
+exports.deleteArtistProfile = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        // Verificar si el artista existe
+        const artist = await Artist.findOne({ where: { userId } });
+        
+        if (!artist) {
+            return res.status(404).json({
+                success: false,
+                message: 'Perfil de artista no encontrado'
+            });
+        }
+        
+        // Eliminar la imagen de perfil si existe
+        if (artist.fotoPerfil) {
+            const imagePath = artist.fotoPerfil.replace(/^\/uploads\/profile-pics\//, '');
+            const fullPath = path.join(__dirname, '..', 'uploads', 'profile-pics', imagePath);
+            
+            if (fs.existsSync(fullPath)) {
+                fs.unlinkSync(fullPath);
+                console.log(`Imagen de perfil eliminada: ${fullPath}`);
+            }
+        }
+        
+        // Eliminar el perfil de artista
+        await artist.destroy();
+        
+        res.json({
+            success: true,
+            message: 'Perfil de artista eliminado correctamente'
+        });
+    } catch (error) {
+        console.error('Error al eliminar perfil de artista:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al eliminar el perfil de artista',
+            error: error.message
+        });
+    }
+};
+
