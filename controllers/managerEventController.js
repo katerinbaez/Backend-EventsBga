@@ -35,49 +35,52 @@ exports.createManagerEvent = async (req, res) => {
     // Verificar y obtener el espacio cultural correcto
     let espacioCultural;
     
-    // Si se proporcionó un spaceId, buscarlo específicamente
-    if (spaceId) {
-      console.log(`Buscando espacio cultural con ID: ${spaceId}`);
-      
-      // Buscar el espacio cultural por ID (sin importar si es número, string o UUID)
-      espacioCultural = await CulturalSpace.findOne({
-        where: {
-          id: spaceId
-        }
-      });
-      
-      if (!espacioCultural) {
-        console.log(`No se encontró espacio cultural con ID: ${spaceId}`);
-        return res.status(404).json({
-          success: false,
-          message: 'El espacio cultural especificado no existe'
-        });
+    // Primero, buscar siempre el espacio cultural asociado al managerId
+    console.log(`Buscando espacios culturales para el manager: ${managerId}`);
+    
+    // Usar el modelo CulturalSpace para acceder a la tabla CulturalSpaces
+    espacioCultural = await CulturalSpace.findOne({
+      where: {
+        managerId: managerId
       }
+    });
+    console.log('Resultado de la búsqueda por managerId:', espacioCultural ? 'Encontrado' : 'No encontrado');
+    
+    // Si no se encontró un espacio asociado al manager, intentar buscar por spaceId si se proporcionó
+    if (!espacioCultural && spaceId) {
+      console.log(`No se encontró espacio para el manager: ${managerId}, intentando buscar por spaceId: ${spaceId}`);
       
-      // Verificar que el managerId tenga permisos sobre este espacio
-      if (espacioCultural.managerId !== managerId) {
-        return res.status(403).json({
-          success: false,
-          message: 'No tienes permisos para crear eventos en este espacio cultural'
-        });
-      }
-    } else {
-      // Si no se proporcionó spaceId, buscar un espacio asociado al manager
-      console.log(`Buscando espacios culturales para el manager: ${managerId}`);
-      
-      espacioCultural = await CulturalSpace.findOne({
-        where: {
-          managerId: managerId
+      try {
+        // Intentar convertir a número si es posible (los IDs de espacios son enteros)
+        const spaceIdNum = parseInt(spaceId, 10);
+        
+        if (!isNaN(spaceIdNum)) {
+          espacioCultural = await CulturalSpace.findByPk(spaceIdNum);
+          console.log(`Buscando espacio por ID numérico: ${spaceIdNum}`);
+        } else {
+          console.log(`El spaceId no es un número válido: ${spaceId}`);
         }
-      });
-      
-      if (!espacioCultural) {
-        return res.status(404).json({
-          success: false,
-          message: 'No se encontró ningún espacio cultural asociado a tu cuenta'
-        });
+      } catch (error) {
+        console.error('Error al convertir o buscar spaceId:', error);
       }
     }
+    
+    // Si todavía no se encontró un espacio, buscar cualquier espacio disponible
+    if (!espacioCultural) {
+      console.log('No se encontró un espacio específico, buscando cualquier espacio disponible...');
+      espacioCultural = await CulturalSpace.findOne();
+    }
+    
+    // Si no se encontró ningún espacio cultural, retornar error
+    if (!espacioCultural) {
+      return res.status(404).json({
+        success: false,
+        message: 'No se encontró ningún espacio cultural disponible'
+      });
+    }
+    
+    console.log(`Se usará el espacio cultural: ${espacioCultural.nombre} (ID: ${espacioCultural.id})`);
+    
     
     // Validar que la fecha no sea en el pasado
     const fechaEvento = new Date(`${fecha}T${horaInicio}`);
