@@ -27,5 +27,4 @@ router.put('/upload-profile-image/:userId', upload.single('profileImage'), artis
 
 // Eliminar perfil de artista
 router.delete('/profile/:userId', artistController.deleteArtistProfile);
-
 module.exports = router;
