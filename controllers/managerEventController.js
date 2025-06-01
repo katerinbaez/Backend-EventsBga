@@ -32,15 +32,29 @@ exports.createManagerEvent = async (req, res) => {
       });
     }
     
-    // Buscar un espacio cultural existente (usar el primero disponible)
-    let space;
+    // Verificar si se proporcionó un spaceId en la solicitud
+    let realSpaceId;
     try {
-      space = await CulturalSpace.findOne();
-      if (!space) {
-        return res.status(404).json({
-          success: false,
-          message: 'No se encontró ningún espacio cultural'
-        });
+      if (spaceId) {
+        // Si se proporcionó un spaceId, verificar que exista
+        const space = await CulturalSpace.findByPk(spaceId);
+        if (space) {
+          realSpaceId = space.id;
+        } else {
+          console.log(`No se encontró el espacio cultural con ID: ${spaceId}, buscando alternativa...`);
+        }
+      }
+      
+      // Si no se proporcionó un spaceId o no se encontró el espacio, buscar uno disponible
+      if (!realSpaceId) {
+        const space = await CulturalSpace.findOne();
+        if (!space) {
+          return res.status(404).json({
+            success: false,
+            message: 'No se encontró ningún espacio cultural'
+          });
+        }
+        realSpaceId = space.id;
       }
     } catch (error) {
       console.error('Error al buscar espacio cultural:', error);
@@ -50,9 +64,6 @@ exports.createManagerEvent = async (req, res) => {
         error: error.message
       });
     }
-    
-    // Usar el ID del espacio encontrado
-    const realSpaceId = space.id;
     
     // Crear el evento
     const nuevoEvento = await Event.create({
