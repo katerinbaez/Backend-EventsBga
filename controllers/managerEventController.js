@@ -36,19 +36,33 @@ exports.createManagerEvent = async (req, res) => {
     let realSpaceId;
     try {
       if (spaceId) {
-        // Comprobar si el spaceId es un UUID o un número
+        // Intentar convertir el spaceId a un número entero si es posible
+        let spaceIdToUse = spaceId;
         console.log(`Tipo de spaceId recibido: ${typeof spaceId}, valor: ${spaceId}`);
         
-        // Si es un UUID, buscar por condición where en lugar de findByPk
-        const space = await CulturalSpace.findOne({
-          where: { id: spaceId }
-        });
-        
-        if (space) {
-          realSpaceId = space.id;
-          console.log(`Espacio encontrado con ID: ${realSpaceId}`);
+        // Si parece ser un UUID, intentar extraer un ID numérico
+        if (typeof spaceId === 'string' && spaceId.includes('-')) {
+          console.log('El spaceId parece ser un UUID, buscando un espacio alternativo...');
+          // No intentamos convertir el UUID a entero, buscamos una alternativa
         } else {
-          console.log(`No se encontró el espacio cultural con ID: ${spaceId}, buscando alternativa...`);
+          // Intentar convertir a número si no es un número ya
+          if (typeof spaceId !== 'number') {
+            spaceIdToUse = parseInt(spaceId, 10);
+            console.log(`SpaceId convertido a número: ${spaceIdToUse}`);
+          }
+          
+          // Buscar el espacio cultural por ID numérico
+          if (!isNaN(spaceIdToUse)) {
+            const space = await CulturalSpace.findByPk(spaceIdToUse);
+            if (space) {
+              realSpaceId = space.id;
+              console.log(`Espacio encontrado con ID: ${realSpaceId}`);
+            } else {
+              console.log(`No se encontró el espacio cultural con ID: ${spaceIdToUse}, buscando alternativa...`);
+            }
+          } else {
+            console.log(`No se pudo convertir el spaceId a un número válido: ${spaceId}`);
+          }
         }
       }
       
