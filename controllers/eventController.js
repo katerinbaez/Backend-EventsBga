@@ -539,7 +539,18 @@ exports.scheduleEvent = async (req, res) => {
     }
     
     // Actualizar el evento con la fecha programada
-    event.fechaProgramada = new Date(scheduledDateTime);
+    // Asegurarnos de que la fecha se guarde correctamente sin ajustes de zona horaria
+    const dateTime = new Date(scheduledDateTime);
+    
+    // Ajustar la fecha para compensar la diferencia de zona horaria
+    // Esto garantiza que la fecha se guarde como se ingresó, sin desplazamiento
+    const offset = dateTime.getTimezoneOffset();
+    const adjustedDate = new Date(dateTime.getTime() + (offset * 60 * 1000));
+    
+    console.log('Fecha original:', scheduledDateTime);
+    console.log('Fecha ajustada:', adjustedDate.toISOString());
+    
+    event.fechaProgramada = adjustedDate;
     event.notas = notes || '';
     event.estado = 'programado';
     
