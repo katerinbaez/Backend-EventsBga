@@ -36,10 +36,17 @@ exports.createManagerEvent = async (req, res) => {
     let realSpaceId;
     try {
       if (spaceId) {
-        // Si se proporcionó un spaceId, verificar que exista
-        const space = await CulturalSpace.findByPk(spaceId);
+        // Comprobar si el spaceId es un UUID o un número
+        console.log(`Tipo de spaceId recibido: ${typeof spaceId}, valor: ${spaceId}`);
+        
+        // Si es un UUID, buscar por condición where en lugar de findByPk
+        const space = await CulturalSpace.findOne({
+          where: { id: spaceId }
+        });
+        
         if (space) {
           realSpaceId = space.id;
+          console.log(`Espacio encontrado con ID: ${realSpaceId}`);
         } else {
           console.log(`No se encontró el espacio cultural con ID: ${spaceId}, buscando alternativa...`);
         }
