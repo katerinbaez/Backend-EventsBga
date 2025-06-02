@@ -24,8 +24,13 @@ exports.createManagerEvent = async (req, res) => {
       requerimientosAdicionales
     } = req.body;
     
-    // Validar campos obligatorios
+    // Validar campos obligatorios y registrar los datos recibidos para depuración
+    console.log('Datos recibidos para crear evento:', {
+      titulo, descripcion, fecha, horaInicio, horaFin, managerId, spaceId
+    });
+    
     if (!titulo || !descripcion || !fecha || !horaInicio || !horaFin || !managerId) {
+      console.log('Faltan campos obligatorios para crear el evento');
       return res.status(400).json({
         success: false,
         message: 'Faltan campos obligatorios para crear el evento'
@@ -93,7 +98,26 @@ exports.createManagerEvent = async (req, res) => {
       });
     }
     
+    // Verificar si ya existe un evento con los mismos datos para evitar duplicados
+    const eventoExistente = await Event.findOne({
+      where: {
+        titulo,
+        fechaProgramada: fechaEvento,
+        managerId
+      }
+    });
+    
+    if (eventoExistente) {
+      console.log('Ya existe un evento con estos datos:', eventoExistente.id);
+      return res.status(409).json({
+        success: false,
+        message: 'Ya existe un evento con el mismo título y fecha para este gestor',
+        eventId: eventoExistente.id
+      });
+    }
+    
     // Crear el evento con el espacio cultural correcto
+    console.log('Creando nuevo evento con spaceId:', espacioCultural.id);
     const nuevoEvento = await Event.create({
       titulo,
       descripcion,
@@ -115,11 +139,26 @@ exports.createManagerEvent = async (req, res) => {
     
   } catch (error) {
     console.error('Error al crear evento como gestor:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Error al crear el evento',
-      error: error.message
-    });
+    
+    // Proporcionar mensajes de error más específicos según el tipo de error
+    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos inválidos para crear el evento',
+        details: error.errors.map(e => e.message)
+      });
+    } else if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'El espacio cultural o gestor especificado no existe'
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: 'Error al crear el evento',
+        error: error.message
+      });
+    }
   }
 };
 // Obtener todos los eventos creados por un gestor
