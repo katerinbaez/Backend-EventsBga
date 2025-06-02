@@ -24,13 +24,8 @@ exports.createManagerEvent = async (req, res) => {
       requerimientosAdicionales
     } = req.body;
     
-    // Validar campos obligatorios y registrar los datos recibidos para depuración
-    console.log('Datos recibidos para crear evento:', {
-      titulo, descripcion, fecha, horaInicio, horaFin, managerId, spaceId
-    });
-    
+    // Validar campos obligatorios
     if (!titulo || !descripcion || !fecha || !horaInicio || !horaFin || !managerId) {
-      console.log('Faltan campos obligatorios para crear el evento');
       return res.status(400).json({
         success: false,
         message: 'Faltan campos obligatorios para crear el evento'
@@ -99,69 +94,18 @@ exports.createManagerEvent = async (req, res) => {
     }
     
     // Crear el evento con el espacio cultural correcto
-    console.log('Intentando crear nuevo evento con spaceId:', espacioCultural.id);
-    
-    console.log('PASO 1: Preparando datos para crear evento');
-    
-    // Verificar el formato de la fecha antes de continuar
-    console.log('Fecha original:', fecha);
-    console.log('Hora inicio:', horaInicio);
-    console.log('Fecha evento formateada:', fechaEvento);
-    console.log('Tipo de fechaEvento:', typeof fechaEvento);
-    if (fechaEvento instanceof Date) {
-      console.log('Es una instancia de Date válida:', fechaEvento.toISOString());
-    } else {
-      console.log('NO es una instancia de Date válida');
-      // Intentar crear una fecha válida
-      fechaEvento = new Date(fecha + 'T' + horaInicio);
-      console.log('Nueva fecha creada:', fechaEvento);
-    }
-    
-    console.log('PASO 2: Intentando crear el evento con los siguientes datos:');
-    console.log({
+    const nuevoEvento = await Event.create({
       titulo,
       descripcion,
       fechaProgramada: fechaEvento,
-      spaceId: espacioCultural.id,
+      spaceId: espacioCultural.id, // <-- Usamos el ID del espacio encontrado
       managerId,
       categoria,
       tipoEvento,
-      asistentesEsperados,
-      requerimientosAdicionales
+      asistentesEsperados: asistentesEsperados || 0,
+      requerimientosAdicionales: requerimientosAdicionales || 'Ninguno',
+      estado: 'programado'
     });
-    
-    let nuevoEvento;
-    try {
-      // Crear el evento con datos mínimos primero para identificar problemas
-      console.log('PASO 3: Creando evento con datos mínimos');
-      nuevoEvento = await Event.create({
-        titulo,
-        descripcion: descripcion || 'Sin descripción',
-        fechaProgramada: fechaEvento,
-        spaceId: espacioCultural.id,
-        managerId,
-        estado: 'programado'
-      });
-      
-      console.log('PASO 4: Evento creado exitosamente con ID:', nuevoEvento.id);
-    } catch (error) {
-      // Capturar y registrar cualquier error que ocurra durante la creación
-      console.error('Error detallado al crear el evento:', {
-        mensaje: error.message,
-        nombre: error.name,
-        stack: error.stack,
-        codigo: error.code
-      });
-      
-      // Devolver un error detallado al cliente
-      return res.status(400).json({
-        success: false,
-        message: 'Error al crear el evento',
-        error: error.message,
-        errorType: error.name,
-        errorCode: error.code
-      });
-    }
     
     return res.status(201).json({
       success: true,
@@ -171,26 +115,11 @@ exports.createManagerEvent = async (req, res) => {
     
   } catch (error) {
     console.error('Error al crear evento como gestor:', error);
-    
-    // Proporcionar mensajes de error más específicos según el tipo de error
-    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Datos inválidos para crear el evento',
-        details: error.errors.map(e => e.message)
-      });
-    } else if (error.name === 'SequelizeForeignKeyConstraintError') {
-      return res.status(400).json({
-        success: false,
-        message: 'El espacio cultural o gestor especificado no existe'
-      });
-    } else {
-      return res.status(500).json({
-        success: false,
-        message: 'Error al crear el evento',
-        error: error.message
-      });
-    }
+    return res.status(500).json({
+      success: false,
+      message: 'Error al crear el evento',
+      error: error.message
+    });
   }
 };
 // Obtener todos los eventos creados por un gestor
