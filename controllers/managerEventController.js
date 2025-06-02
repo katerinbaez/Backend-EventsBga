@@ -101,21 +101,54 @@ exports.createManagerEvent = async (req, res) => {
     // Crear el evento con el espacio cultural correcto
     console.log('Intentando crear nuevo evento con spaceId:', espacioCultural.id);
     
-    // Crear el evento de manera simple
-    const nuevoEvento = await Event.create({
-      titulo,
-      descripcion,
-      fechaProgramada: fechaEvento,
-      spaceId: espacioCultural.id, // <-- Usamos el ID del espacio encontrado
-      managerId,
-      categoria,
-      tipoEvento,
-      asistentesEsperados: asistentesEsperados || 0,
-      requerimientosAdicionales: requerimientosAdicionales || 'Ninguno',
-      estado: 'programado'
-    });
-    
-    console.log('Evento creado exitosamente con ID:', nuevoEvento.id);
+    let nuevoEvento;
+    try {
+      // Imprimir los datos exactos que se van a usar para crear el evento
+      console.log('Datos para crear evento:', {
+        titulo,
+        descripcion,
+        fechaEvento: fechaEvento.toISOString(),
+        spaceId: espacioCultural.id,
+        managerId,
+        categoria,
+        tipoEvento,
+        asistentesEsperados: asistentesEsperados || 0,
+        requerimientosAdicionales: requerimientosAdicionales || 'Ninguno'
+      });
+      
+      // Crear el evento paso a paso para identificar dónde falla
+      nuevoEvento = await Event.create({
+        titulo,
+        descripcion,
+        fechaProgramada: fechaEvento,
+        spaceId: espacioCultural.id, // <-- Usamos el ID del espacio encontrado
+        managerId,
+        categoria,
+        tipoEvento,
+        asistentesEsperados: asistentesEsperados || 0,
+        requerimientosAdicionales: requerimientosAdicionales || 'Ninguno',
+        estado: 'programado'
+      });
+      
+      console.log('Evento creado exitosamente con ID:', nuevoEvento.id);
+    } catch (error) {
+      // Capturar y registrar cualquier error que ocurra durante la creación
+      console.error('Error detallado al crear el evento:', {
+        mensaje: error.message,
+        nombre: error.name,
+        stack: error.stack,
+        codigo: error.code
+      });
+      
+      // Devolver un error detallado al cliente
+      return res.status(400).json({
+        success: false,
+        message: 'Error al crear el evento',
+        error: error.message,
+        errorType: error.name,
+        errorCode: error.code
+      });
+    }
     
     return res.status(201).json({
       success: true,
