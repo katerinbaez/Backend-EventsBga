@@ -101,36 +101,49 @@ exports.createManagerEvent = async (req, res) => {
     // Crear el evento con el espacio cultural correcto
     console.log('Intentando crear nuevo evento con spaceId:', espacioCultural.id);
     
+    console.log('PASO 1: Preparando datos para crear evento');
+    
+    // Verificar el formato de la fecha antes de continuar
+    console.log('Fecha original:', fecha);
+    console.log('Hora inicio:', horaInicio);
+    console.log('Fecha evento formateada:', fechaEvento);
+    console.log('Tipo de fechaEvento:', typeof fechaEvento);
+    if (fechaEvento instanceof Date) {
+      console.log('Es una instancia de Date válida:', fechaEvento.toISOString());
+    } else {
+      console.log('NO es una instancia de Date válida');
+      // Intentar crear una fecha válida
+      fechaEvento = new Date(fecha + 'T' + horaInicio);
+      console.log('Nueva fecha creada:', fechaEvento);
+    }
+    
+    console.log('PASO 2: Intentando crear el evento con los siguientes datos:');
+    console.log({
+      titulo,
+      descripcion,
+      fechaProgramada: fechaEvento,
+      spaceId: espacioCultural.id,
+      managerId,
+      categoria,
+      tipoEvento,
+      asistentesEsperados,
+      requerimientosAdicionales
+    });
+    
     let nuevoEvento;
     try {
-      // Imprimir los datos exactos que se van a usar para crear el evento
-      console.log('Datos para crear evento:', {
-        titulo,
-        descripcion,
-        fechaEvento: fechaEvento.toISOString(),
-        spaceId: espacioCultural.id,
-        managerId,
-        categoria,
-        tipoEvento,
-        asistentesEsperados: asistentesEsperados || 0,
-        requerimientosAdicionales: requerimientosAdicionales || 'Ninguno'
-      });
-      
-      // Crear el evento paso a paso para identificar dónde falla
+      // Crear el evento con datos mínimos primero para identificar problemas
+      console.log('PASO 3: Creando evento con datos mínimos');
       nuevoEvento = await Event.create({
         titulo,
-        descripcion,
+        descripcion: descripcion || 'Sin descripción',
         fechaProgramada: fechaEvento,
-        spaceId: espacioCultural.id, // <-- Usamos el ID del espacio encontrado
+        spaceId: espacioCultural.id,
         managerId,
-        categoria,
-        tipoEvento,
-        asistentesEsperados: asistentesEsperados || 0,
-        requerimientosAdicionales: requerimientosAdicionales || 'Ninguno',
         estado: 'programado'
       });
       
-      console.log('Evento creado exitosamente con ID:', nuevoEvento.id);
+      console.log('PASO 4: Evento creado exitosamente con ID:', nuevoEvento.id);
     } catch (error) {
       // Capturar y registrar cualquier error que ocurra durante la creación
       console.error('Error detallado al crear el evento:', {
