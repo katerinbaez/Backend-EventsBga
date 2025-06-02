@@ -98,58 +98,24 @@ exports.createManagerEvent = async (req, res) => {
       });
     }
     
-    // Verificar si ya existe un evento con los mismos datos para evitar duplicados
-    console.log('Verificando si ya existe un evento similar...');
-    try {
-      const eventoExistente = await Event.findOne({
-        where: {
-          titulo,
-          fechaProgramada: fechaEvento,
-          managerId
-        }
-      });
-      
-      if (eventoExistente) {
-        console.log('Ya existe un evento con estos datos:', eventoExistente.id);
-        return res.status(409).json({
-          success: false,
-          message: 'Ya existe un evento con el mismo título y fecha para este gestor',
-          eventId: eventoExistente.id
-        });
-      }
-      console.log('No se encontró un evento existente con los mismos datos');
-    } catch (error) {
-      console.error('Error al verificar eventos existentes:', error);
-    }
-    
     // Crear el evento con el espacio cultural correcto
-    console.log('Creando nuevo evento con spaceId:', espacioCultural.id);
-    let nuevoEvento;
-    try {
-      nuevoEvento = await Event.create({
-        titulo,
-        descripcion,
-        fechaProgramada: fechaEvento,
-        spaceId: espacioCultural.id, // <-- Usamos el ID del espacio encontrado
-        managerId,
-        categoria,
-        tipoEvento,
-        asistentesEsperados: asistentesEsperados || 0,
-        requerimientosAdicionales: requerimientosAdicionales || 'Ninguno',
-        estado: 'programado'
-      });
-      console.log('Evento creado exitosamente con ID:', nuevoEvento.id);
-    } catch (error) {
-      console.error('Error específico al crear el evento:', error.message);
-      if (error.name === 'SequelizeUniqueConstraintError') {
-        console.log('Violación de restricción de unicidad:', error.fields);
-      } else if (error.name === 'SequelizeForeignKeyConstraintError') {
-        console.log('Violación de clave foránea:', error.fields);
-      } else if (error.name === 'SequelizeValidationError') {
-        console.log('Error de validación:', error.errors.map(e => e.message));
-      }
-      throw error; // Re-lanzar el error para que sea manejado por el bloque catch exterior
-    }
+    console.log('Intentando crear nuevo evento con spaceId:', espacioCultural.id);
+    
+    // Crear el evento de manera simple
+    const nuevoEvento = await Event.create({
+      titulo,
+      descripcion,
+      fechaProgramada: fechaEvento,
+      spaceId: espacioCultural.id, // <-- Usamos el ID del espacio encontrado
+      managerId,
+      categoria,
+      tipoEvento,
+      asistentesEsperados: asistentesEsperados || 0,
+      requerimientosAdicionales: requerimientosAdicionales || 'Ninguno',
+      estado: 'programado'
+    });
+    
+    console.log('Evento creado exitosamente con ID:', nuevoEvento.id);
     
     return res.status(201).json({
       success: true,
