@@ -1,3 +1,6 @@
+// Migración para cambiar tipo de targetId en Favorites
+// Convierte targetId de INTEGER a STRING para mayor flexibilidad
+
 'use strict';
 
 module.exports = {
@@ -9,7 +12,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    // Nota: Esta migración de reversión podría fallar si hay datos que no pueden convertirse a INTEGER
     await queryInterface.changeColumn('Favorites', 'targetId', {
       type: Sequelize.INTEGER,
       allowNull: false

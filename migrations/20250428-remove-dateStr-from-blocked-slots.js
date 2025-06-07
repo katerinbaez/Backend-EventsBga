@@ -1,9 +1,11 @@
+// Migración para eliminar columna dateStr de BlockedSlots
+// Simplifica la estructura de datos manteniendo solo la fecha
+
 'use strict';
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     try {
-      // Eliminar la columna dateStr de la tabla BlockedSlots
       await queryInterface.removeColumn('BlockedSlots', 'dateStr');
       console.log('Columna dateStr eliminada de la tabla BlockedSlots');
       return Promise.resolve();
@@ -15,7 +17,6 @@ module.exports = {
 
   down: async (queryInterface, Sequelize) => {
     try {
-      // Recrear la columna dateStr en caso de rollback
       await queryInterface.addColumn('BlockedSlots', 'dateStr', {
         type: Sequelize.STRING,
         allowNull: true,

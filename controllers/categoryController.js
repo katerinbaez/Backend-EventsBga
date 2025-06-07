@@ -1,11 +1,13 @@
+
+// Controlador para manejar categorías de eventos
+// Gestiona la obtención y formateo de categorías de eventos y solicitudes
+
 const { Op } = require('sequelize');
 const Event = require('../models/Event');
 const EventRequest = require('../models/EventRequest');
 
-// Obtener todas las categorías
 exports.getAllCategories = async (req, res) => {
   try {
-    // Obtener categorías únicas de la tabla Events
     const eventCategories = await Event.findAll({
       attributes: ['categoria'],
       group: ['categoria'],
@@ -16,7 +18,6 @@ exports.getAllCategories = async (req, res) => {
       }
     });
 
-    // Obtener categorías únicas de la tabla EventRequests
     const requestCategories = await EventRequest.findAll({
       attributes: ['categoria'],
       group: ['categoria'],
@@ -27,16 +28,14 @@ exports.getAllCategories = async (req, res) => {
       }
     });
 
-    // Combinar y eliminar duplicados
     const allCategories = [
       ...eventCategories.map(item => item.categoria),
       ...requestCategories.map(item => item.categoria)
     ];
     
-    // Eliminar duplicados y valores nulos
     const uniqueCategories = [...new Set(allCategories)].filter(Boolean);
     
-    // Transformar a formato de categorías
+    
     const formattedCategories = uniqueCategories.map((nombre, index) => ({
       id: index + 1,
       nombre,
@@ -51,7 +50,6 @@ exports.getAllCategories = async (req, res) => {
   }
 };
 
-// Función auxiliar para asignar colores a las categorías
 function getColorForCategory(category) {
   const colors = {
     'Música': '#FF3A5E',
@@ -64,5 +62,5 @@ function getColorForCategory(category) {
     'Gastronomía': '#D0021B'
   };
   
-  return colors[category] || '#FF3A5E'; // Color por defecto
+  return colors[category] || '#FF3A5E'; 
 }

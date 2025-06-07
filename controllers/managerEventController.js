@@ -1,15 +1,15 @@
-// Controlador para eventos creados por gestores
+// Controlador de eventos de gestores
+// Maneja la creación y gestión de eventos directos por gestores culturales
+
 const Event = require('../models/Event');
 const CulturalSpace = require('../models/CulturalSpace');
 const { User } = require('../models/User');
 const EventAttendance = require('../models/EventAttendance');
 
-// Crear un evento directamente como gestor cultural
 exports.createManagerEvent = async (req, res) => {
   try {
     console.log('Recibida solicitud para crear evento como gestor:', req.body);
     
-    // Extraer datos del cuerpo de la solicitud
     const { 
       titulo, 
       descripcion, 
@@ -24,7 +24,6 @@ exports.createManagerEvent = async (req, res) => {
       requerimientosAdicionales
     } = req.body;
     
-    // Validar campos obligatorios
     if (!titulo || !descripcion || !fecha || !horaInicio || !horaFin || !managerId) {
       return res.status(400).json({
         success: false,
@@ -32,15 +31,12 @@ exports.createManagerEvent = async (req, res) => {
       });
     }
     
-    // Buscar el espacio cultural asociado al gestor
     let espacioCultural;
     try {
-      // Buscar por managerId
       espacioCultural = await CulturalSpace.findOne({
         where: { managerId }
       });
       
-      // Verificar si se encontró el espacio cultural
       if (!espacioCultural) {
         return res.status(404).json({
           success: false,
@@ -56,21 +52,19 @@ exports.createManagerEvent = async (req, res) => {
       });
     }
     
-    // Usar el ID del espacio encontrado
     const realSpaceId = espacioCultural.id;
     
-    // Crear el evento
     const nuevoEvento = await Event.create({
       titulo,
       descripcion,
-      fechaProgramada: new Date(`${fecha}T${horaInicio}`), // Usar la fecha y hora de inicio como fecha programada
+      fechaProgramada: new Date(`${fecha}T${horaInicio}`),
       spaceId: realSpaceId,
       managerId,
       categoria,
       tipoEvento,
       asistentesEsperados: asistentesEsperados || 0,
       requerimientosAdicionales: requerimientosAdicionales || 'Ninguno',
-      estado: 'programado' // Eventos creados por gestores están programados automáticamente
+      estado: 'programado' 
     });
     
     return res.status(201).json({
@@ -89,7 +83,6 @@ exports.createManagerEvent = async (req, res) => {
   }
 };
 
-// Obtener todos los eventos creados por un gestor
 exports.getManagerEvents = async (req, res) => {
   try {
     const { managerId } = req.params;
@@ -101,7 +94,6 @@ exports.getManagerEvents = async (req, res) => {
       });
     }
     
-    // Buscar todos los eventos creados por este gestor
     const events = await Event.findAll({
       where: { managerId },
       order: [['fechaProgramada', 'DESC']]
@@ -121,12 +113,10 @@ exports.getManagerEvents = async (req, res) => {
   }
 };
 
-// Eliminar un evento creado por un gestor
 exports.deleteManagerEvent = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Verificar que el evento exista
     const event = await Event.findByPk(id);
     
     if (!event) {
@@ -136,24 +126,20 @@ exports.deleteManagerEvent = async (req, res) => {
       });
     }
     
-    // Verificar si se está usando el modo admin mediante query param o headers especiales
     const isAdminMode = req.query.isAdmin === 'true' || 
                        (req.headers['x-user-role'] === 'admin' && req.headers['x-user-email']);
     const isManagerMode = req.headers['x-user-role'] === 'manager' && req.headers['x-user-email'];
     
-    // Si es modo admin o manager, omitir verificación de permisos
     if (isAdminMode) {
       console.log('Modo admin activado: omitiendo verificación de permisos');
     }
     else if (isManagerMode) {
       console.log('Modo manager activado: omitiendo verificación de permisos');
     }
-    // Si no es modo admin/manager y req.user existe, verificar permisos normalmente
     else if (req.user && req.user.id && req.user.role) {
       const userId = req.user.id;
       const userRole = req.user.role;
       
-      // Verificar permisos (solo el gestor que creó el evento o un admin puede eliminarlo)
       if (userRole !== 'admin' && userRole !== 'manager') {
         if (event.managerId !== userId) {
           return res.status(403).json({
@@ -163,20 +149,17 @@ exports.deleteManagerEvent = async (req, res) => {
         }
       }
     }
-    // Si no es modo admin/manager y req.user no existe o es incompleto, omitir verificación
     else {
       console.log('Omitiendo verificación de permisos por falta de datos de usuario');
     }
     
     try {
-      // Primero eliminar los registros asociados en EventAttendances
       await EventAttendance.destroy({
         where: { eventId: id }
       });
       
       console.log(`Registros de asistencia eliminados para el evento ${id}`);
       
-      // Luego eliminar el evento
       await event.destroy();
       
       return res.status(200).json({
@@ -201,7 +184,6 @@ exports.deleteManagerEvent = async (req, res) => {
   }
 };
 
-// Actualizar un evento creado por un gestor
 exports.updateManagerEvent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -221,7 +203,6 @@ exports.updateManagerEvent = async (req, res) => {
     console.log('Recibida solicitud para actualizar evento:', id);
     console.log('Datos recibidos:', req.body);
     
-    // Validar que el evento exista
     const evento = await Event.findByPk(id);
     if (!evento) {
       return res.status(404).json({
@@ -230,7 +211,6 @@ exports.updateManagerEvent = async (req, res) => {
       });
     }
     
-    // Validar que el evento pertenezca al gestor (si se proporciona managerId)
     if (managerId && evento.managerId !== managerId) {
       return res.status(403).json({
         success: false,
@@ -238,31 +218,26 @@ exports.updateManagerEvent = async (req, res) => {
       });
     }
     
-    // Preparar los datos para actualizar
     const datosActualizados = {};
     
-    // Actualizar solo los campos proporcionados
     if (titulo) datosActualizados.titulo = titulo;
     if (descripcion) datosActualizados.descripcion = descripcion;
     
-    // Si se proporciona fecha y hora, actualizar fechaProgramada
     if (fecha && horaInicio) {
       datosActualizados.fechaProgramada = new Date(`${fecha}T${horaInicio}`);
     }
     
-    // Actualizar otros campos si se proporcionan
     if (categoria) datosActualizados.categoria = categoria;
     if (tipoEvento) datosActualizados.tipoEvento = tipoEvento;
     if (asistentesEsperados) datosActualizados.asistentesEsperados = asistentesEsperados;
     if (requerimientosAdicionales) datosActualizados.requerimientosAdicionales = requerimientosAdicionales;
     
-    // Actualizar el evento
     await evento.update(datosActualizados);
     
     return res.status(200).json({
       success: true,
       message: 'Evento actualizado exitosamente',
-      event: await Event.findByPk(id) // Devolver el evento actualizado
+      event: await Event.findByPk(id)
     });
     
   } catch (error) {

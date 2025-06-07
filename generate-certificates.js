@@ -1,9 +1,11 @@
+// Script para generar certificados SSL autofirmados
+// Crea certificados para desarrollo local con validez de 1 año
+
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const selfsigned = require('selfsigned');
 
-// Crear directorio de certificados si no existe
 const certDir = path.join(__dirname, 'certificates');
 if (!fs.existsSync(certDir)) {
   fs.mkdirSync(certDir, { recursive: true });
@@ -11,7 +13,6 @@ if (!fs.existsSync(certDir)) {
 
 console.log('Generando certificados SSL autofirmados...');
 
-// Generar certificados
 const attrs = [
   { name: 'commonName', value: 'localhost' },
   { name: 'countryName', value: 'CO' },
@@ -19,7 +20,7 @@ const attrs = [
 ];
 
 const options = {
-  days: 365, // Validez de 1 año
+  days: 365,
   keySize: 2048,
   extensions: [
     { name: 'subjectAltName', altNames: [
@@ -34,11 +35,9 @@ const options = {
 try {
   const pems = selfsigned.generate(attrs, options);
   
-  // Guardar la clave privada
   fs.writeFileSync(path.join(certDir, 'key.pem'), pems.private);
   console.log('✅ Clave privada guardada en certificates/key.pem');
   
-  // Guardar el certificado
   fs.writeFileSync(path.join(certDir, 'cert.pem'), pems.cert);
   console.log('✅ Certificado guardado en certificates/cert.pem');
   

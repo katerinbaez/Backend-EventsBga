@@ -1,15 +1,16 @@
+// Controlador para asistencia a eventos
+// Maneja registro y consulta de asistencia
+
 const EventAttendance = require('../models/EventAttendance');
 const Event = require('../models/Event');
 const { User } = require('../models/User');
-const { Artist } = require('../models/Artist'); // Importar el modelo Artist correctamente
-const sequelize = require('../config/database'); // Corregir la importación de sequelize
-const { Op } = require('sequelize'); // Importar los operadores de Sequelize
-const EventRequest = require('../models/EventRequest'); // Importar el modelo EventRequest
+const { Artist } = require('../models/Artist'); 
+const sequelize = require('../config/database'); 
+const { Op } = require('sequelize'); 
+const EventRequest = require('../models/EventRequest'); 
 
-// Obtener todos los eventos disponibles para artistas
 exports.getAvailableEvents = async (req, res) => {
   try {
-    // Obtener eventos programados
     const events = await Event.findAll({
       where: {
         estado: 'programado'
@@ -31,7 +32,6 @@ exports.getAvailableEvents = async (req, res) => {
   }
 };
 
-// Confirmar asistencia a un evento
 exports.confirmAttendance = async (req, res) => {
   try {
     const { eventId, artistId, userId, userName, isRegularUser } = req.body;
@@ -41,7 +41,6 @@ exports.confirmAttendance = async (req, res) => {
       eventId, artistId, userId, userName, artistName, isRegularUser
     });
 
-    // Validar campos obligatorios
     if (!eventId || (!artistId && !userId)) {
       return res.status(400).json({
         success: false,
@@ -49,18 +48,15 @@ exports.confirmAttendance = async (req, res) => {
       });
     }
 
-    // Verificar si el ID es un UUID (solicitud de evento) o un ID numérico (evento regular)
     const isUUID = typeof eventId === 'string' && 
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
     
     let event;
     
     if (isUUID) {
-      // Es una solicitud de evento (EventRequest)
       console.log(`El ID ${eventId} es un UUID, buscando en EventRequests`);
       event = await EventRequest.findByPk(eventId);
     } else {
-      // Es un evento regular (Event)
       console.log(`El ID ${eventId} es numérico, buscando en Events`);
       event = await Event.findByPk(eventId);
     }
@@ -72,32 +68,26 @@ exports.confirmAttendance = async (req, res) => {
       });
     }
     
-    // Determinar si es un usuario regular o un artista
     const userIsRegular = isRegularUser || (userId && !artistId);
     
     if (userIsRegular) {
-      // Es un usuario regular
-      const attendeeId = userId || artistId; // Usar artistId como fallback si no hay userId
+      const attendeeId = userId || artistId;
       const attendeeName = userName || 'Usuario';
       
       console.log('Procesando asistencia para usuario regular:', {
         attendeeId, attendeeName
       });
 
-      // Para solicitudes de evento (UUID), crear un registro "virtual" de asistencia
-      // ya que no se almacenan en la tabla EventAttendances
+    
       if (isUUID) {
         console.log(`Creando registro virtual de asistencia para evento UUID ${eventId}`);
         
-        // Verificar la capacidad del evento
-        // Para EventRequests, el campo se llama asistentesEsperados
+        
         if (event.asistentesEsperados) {
-          // Aquí no podemos consultar la tabla EventAttendances ya que no almacena UUIDs
-          // Pero podemos implementar una lógica para llevar un conteo en memoria o en otra tabla
+         
           console.log(`Verificando capacidad: ${event.asistentesEsperados} asistentes esperados`);
           
-          // Por ahora, asumimos que hay espacio disponible
-          // En una implementación completa, se debería verificar contra una tabla específica para EventRequests
+        
         }
         
         return res.status(200).json({
@@ -110,12 +100,11 @@ exports.confirmAttendance = async (req, res) => {
             isRegularUser: true,
             status: 'confirmado',
             confirmationDate: new Date(),
-            virtual: true // Indicador de que es un registro virtual
+            virtual: true 
           }
         });
       }
 
-      // Para eventos regulares, verificar si ya existe una confirmación
       const existingAttendance = await EventAttendance.findOne({
         where: {
           eventId,
@@ -124,7 +113,6 @@ exports.confirmAttendance = async (req, res) => {
       });
 
       if (existingAttendance) {
-        // Actualizar la confirmación existente
         existingAttendance.status = 'confirmado';
         existingAttendance.confirmationDate = new Date();
         await existingAttendance.save();
@@ -136,8 +124,6 @@ exports.confirmAttendance = async (req, res) => {
         });
       }
 
-      // Verificar la capacidad del evento antes de crear una nueva asistencia
-      // Para eventos regulares, podemos consultar directamente la tabla EventAttendances
       const currentAttendees = await EventAttendance.count({
         where: {
           eventId,
@@ -155,7 +141,6 @@ exports.confirmAttendance = async (req, res) => {
         });
       }
 
-      // Crear nueva confirmación para usuario regular
       const newAttendance = await EventAttendance.create({
         eventId,
         userId: attendeeId,
@@ -173,25 +158,19 @@ exports.confirmAttendance = async (req, res) => {
         attendance: newAttendance
       });
     } else {
-      // Es un artista
-      // Buscar el perfil del artista para obtener el nombre artístico
       console.log('Procesando asistencia para artista:', {
         artistId, artistName
       });
       
       try {
-        // Buscar directamente en el modelo Artist usando el userId
         console.log('Buscando perfil de artista con userId:', artistId);
         
-        // Intentar buscar el perfil exactamente como viene
         let artistProfile = await Artist.findOne({
           where: { userId: artistId }
         });
         
-        // Si no se encuentra, intentar buscar con el formato de Auth0
         if (!artistProfile && !artistId.includes('|')) {
           console.log('Intentando buscar con formato Auth0 alternativo');
-          // Intentar con formatos comunes de Auth0
           const possibleFormats = [
             `auth0|${artistId}`,
             `google-oauth2|${artistId}`,
@@ -221,17 +200,14 @@ exports.confirmAttendance = async (req, res) => {
           artistName = artistProfile.nombreArtistico;
           console.log('Usando nombre artístico del perfil:', artistName);
         } else if (!artistName) {
-          // Si no se proporcionó artistName y no se encontró perfil, usar un valor predeterminado
           artistName = 'Artista';
           console.log('Usando nombre predeterminado:', artistName);
         }
       } catch (profileError) {
         console.error('Error al buscar perfil de artista:', profileError);
-        // Continuar con el nombre proporcionado o predeterminado
         if (!artistName) artistName = 'Artista';
       }
 
-      // Verificar si ya existe una confirmación para este artista y evento
       const existingAttendance = await EventAttendance.findOne({
         where: {
           eventId,
@@ -240,7 +216,6 @@ exports.confirmAttendance = async (req, res) => {
       });
 
       if (existingAttendance) {
-        // Actualizar la confirmación existente
         existingAttendance.status = 'confirmado';
         existingAttendance.confirmationDate = new Date();
         await existingAttendance.save();
@@ -252,8 +227,6 @@ exports.confirmAttendance = async (req, res) => {
         });
       }
 
-      // Verificar la capacidad del evento antes de crear una nueva asistencia
-      // Para eventos regulares, podemos consultar directamente la tabla EventAttendances
       const currentAttendees = await EventAttendance.count({
         where: {
           eventId,
@@ -271,7 +244,6 @@ exports.confirmAttendance = async (req, res) => {
         });
       }
 
-      // Crear nueva confirmación para artista
       const newAttendance = await EventAttendance.create({
         eventId,
         artistId,
@@ -297,7 +269,6 @@ exports.confirmAttendance = async (req, res) => {
   }
 };
 
-// Cancelar asistencia a un evento
 exports.cancelAttendance = async (req, res) => {
   try {
     const { eventId, artistId, userId, isRegularUser } = req.body;
@@ -306,7 +277,6 @@ exports.cancelAttendance = async (req, res) => {
       eventId, artistId, userId, isRegularUser
     });
 
-    // Validar campos obligatorios
     if (!eventId || (!artistId && !userId)) {
       return res.status(400).json({
         success: false,
@@ -314,7 +284,6 @@ exports.cancelAttendance = async (req, res) => {
       });
     }
 
-    // Verificar si el evento existe
     const event = await Event.findByPk(eventId);
     if (!event) {
       return res.status(404).json({
@@ -323,13 +292,11 @@ exports.cancelAttendance = async (req, res) => {
       });
     }
 
-    // Determinar si es un usuario regular o un artista
     const userIsRegular = isRegularUser || (userId && !artistId);
     const attendeeId = userIsRegular ? userId : artistId;
     
     console.log('Tipo de asistente para cancelación:', userIsRegular ? 'Usuario regular' : 'Artista', 'con ID:', attendeeId);
     
-    // Buscar la asistencia según el tipo de usuario
     let attendance;
     if (userIsRegular) {
       attendance = await EventAttendance.findOne({
@@ -358,7 +325,6 @@ exports.cancelAttendance = async (req, res) => {
       });
     }
 
-    // Actualizar el estado de la asistencia
     attendance.status = 'cancelado';
     await attendance.save();
 
@@ -377,12 +343,10 @@ exports.cancelAttendance = async (req, res) => {
   }
 };
 
-// Obtener artistas confirmados para un evento
 exports.getConfirmedArtists = async (req, res) => {
   try {
     const { eventId } = req.params;
 
-    // Validar que se proporcionó un ID de evento
     if (!eventId) {
       return res.status(400).json({
         success: false,
@@ -390,7 +354,6 @@ exports.getConfirmedArtists = async (req, res) => {
       });
     }
 
-    // Buscar todas las asistencias confirmadas para el evento que sean de artistas
     const attendances = await EventAttendance.findAll({
       where: {
         eventId,
@@ -414,14 +377,12 @@ exports.getConfirmedArtists = async (req, res) => {
   }
 };
 
-// Obtener usuarios regulares confirmados para un evento
 exports.getConfirmedUsers = async (req, res) => {
   try {
     const { eventId } = req.params;
 
     console.log('Obteniendo usuarios confirmados para el evento:', eventId);
 
-    // Validar que se proporcionó un ID de evento
     if (!eventId) {
       return res.status(400).json({
         success: false,
@@ -429,13 +390,12 @@ exports.getConfirmedUsers = async (req, res) => {
       });
     }
 
-    // Buscar todas las asistencias confirmadas para el evento que sean de usuarios regulares
     const attendances = await EventAttendance.findAll({
       where: {
         eventId,
         status: 'confirmado',
         userId: {
-          [Op.ne]: null // Usar Op.ne en lugar de sequelize.Op.ne
+          [Op.ne]: null 
         }
       },
       order: [['confirmationDate', 'DESC']]
@@ -443,7 +403,6 @@ exports.getConfirmedUsers = async (req, res) => {
 
     console.log(`Se encontraron ${attendances.length} usuarios confirmados para el evento ${eventId}`);
 
-    // Formatear los datos para la respuesta
     const formattedAttendances = attendances.map(attendance => {
       return {
         id: attendance.id,
@@ -470,14 +429,12 @@ exports.getConfirmedUsers = async (req, res) => {
   }
 };
 
-// Verificar si un usuario o artista está confirmado para un evento
 exports.checkAttendance = async (req, res) => {
   try {
     const { eventId, userId, artistId } = req.query;
     
     console.log('Verificando asistencia:', { eventId, userId, artistId });
 
-    // Validar campos obligatorios
     if (!eventId || (!userId && !artistId)) {
       return res.status(400).json({
         success: false,
@@ -485,16 +442,13 @@ exports.checkAttendance = async (req, res) => {
       });
     }
 
-    // Determinar si es un usuario regular o un artista
     const isUserRegular = userId && !artistId;
     const attendeeId = isUserRegular ? userId : artistId;
     
     console.log('Tipo de asistente:', isUserRegular ? 'Usuario regular' : 'Artista', 'con ID:', attendeeId);
     
-    // Buscar la asistencia según el tipo de usuario
     let attendance;
     if (isUserRegular) {
-      // Buscar por userId para usuarios regulares
       attendance = await EventAttendance.findOne({
         where: {
           eventId,
@@ -505,7 +459,6 @@ exports.checkAttendance = async (req, res) => {
       
       console.log('Resultado de búsqueda para usuario regular:', attendance ? 'Encontrado' : 'No encontrado');
     } else {
-      // Buscar por artistId para artistas
       attendance = await EventAttendance.findOne({
         where: {
           eventId,
@@ -531,14 +484,12 @@ exports.checkAttendance = async (req, res) => {
   }
 };
 
-// Obtener el conteo de asistentes para un evento específico
 exports.getAttendanceCount = async (req, res) => {
   try {
     const { eventId } = req.params;
     
     console.log('Obteniendo conteo de asistentes para el evento:', eventId);
 
-    // Validar que se proporcionó un ID de evento
     if (!eventId) {
       return res.status(400).json({
         success: false,
@@ -546,11 +497,9 @@ exports.getAttendanceCount = async (req, res) => {
       });
     }
 
-    // Verificar si el ID es un UUID (solicitud de evento) o un ID numérico (evento regular)
     const isUUID = typeof eventId === 'string' && 
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(eventId);
     
-    // Si es un UUID, devolver 0 ya que las solicitudes de eventos no tienen asistencias en la tabla EventAttendances
     if (isUUID) {
       console.log(`El evento ${eventId} es una solicitud de evento (UUID), no tiene asistencias registradas en la tabla EventAttendances`);
       return res.status(200).json({
@@ -563,7 +512,6 @@ exports.getAttendanceCount = async (req, res) => {
       });
     }
     
-    // Intentar convertir el eventId a número para asegurarnos de que es un entero
     const numericEventId = parseInt(eventId, 10);
     if (isNaN(numericEventId)) {
       console.log(`El ID de evento ${eventId} no es un número válido ni un UUID reconocido`);
@@ -577,8 +525,6 @@ exports.getAttendanceCount = async (req, res) => {
       });
     }
     
-    // Para eventos regulares (con IDs numéricos), contar asistencias
-    // Contar asistencias confirmadas para el evento (tanto artistas como usuarios regulares)
     const artistsCount = await EventAttendance.count({
       where: {
         eventId: numericEventId,
@@ -596,7 +542,7 @@ exports.getAttendanceCount = async (req, res) => {
         userId: {
           [Op.ne]: null
         },
-        artistId: null // Para asegurarnos de que son usuarios regulares
+        artistId: null 
       }
     });
     
@@ -619,7 +565,6 @@ exports.getAttendanceCount = async (req, res) => {
   } catch (error) {
     console.error('Error al obtener conteo de asistentes:', error);
     
-    // Devolver un conteo de 0 en caso de error para no interrumpir el flujo
     return res.status(200).json({
       success: true,
       count: 0,

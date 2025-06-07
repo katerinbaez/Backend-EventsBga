@@ -1,18 +1,17 @@
-// Importar modelos correctamente
+// Controlador de solicitudes de eventos
+// Maneja operaciones CRUD y transformaciones de solicitudes de eventos
+
 const EventRequest = require('../models/EventRequest');
 const { User } = require('../models/User');
 const CulturalSpace = require('../models/CulturalSpace');
 const sequelize = require('../config/database');
 
-// Transformar solicitud al formato del frontend
 const transformEventRequest = (request, includeAssociations = true) => {
-  // Verificar si request es un objeto válido
   if (!request || typeof request !== 'object') {
     console.error('Solicitud inválida para transformar:', request);
     return null;
   }
   
-  // Transformación básica sin depender de asociaciones
   const transformed = {
     id: request.id,
     eventName: request.titulo || 'Sin título',
@@ -34,7 +33,6 @@ const transformEventRequest = (request, includeAssociations = true) => {
     updatedAt: request.updatedAt || new Date()
   };
   
-  // Agregar información de asociaciones solo si están disponibles y se solicita
   if (includeAssociations) {
     transformed.artistName = request.artist ? request.artist.name : 'Artista';
     transformed.managerName = request.manager ? request.manager.name : 'Gestor';
@@ -50,7 +48,6 @@ const transformEventRequest = (request, includeAssociations = true) => {
   return transformed;
 };
 
-// Obtener todas las solicitudes de eventos
 exports.getAllEventRequests = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -58,7 +55,6 @@ exports.getAllEventRequests = async (req, res) => {
     
     let whereClause = {};
     
-    // Filtrar solicitudes según el rol del usuario
     if (userRole === 'artist') {
       whereClause.artistId = userId;
     } else if (userRole === 'manager') {
@@ -101,7 +97,6 @@ exports.getAllEventRequests = async (req, res) => {
   }
 };
 
-// Obtener una solicitud de evento por ID
 exports.getEventRequestById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -133,7 +128,6 @@ exports.getEventRequestById = async (req, res) => {
       });
     }
     
-    // Verificar que el usuario tenga permiso para ver esta solicitud
     const userId = req.user.id;
     if (eventRequest.artistId !== userId && eventRequest.managerId !== userId && req.user.role !== 'admin') {
       return res.status(403).json({
@@ -156,10 +150,8 @@ exports.getEventRequestById = async (req, res) => {
   }
 };
 
-// Crear una nueva solicitud de evento
 exports.createEventRequest = async (req, res) => {
   try {
-    // Verificar que el usuario esté autenticado correctamente
     if (!req.user || !req.user.id) {
       console.error('Error de autenticación: Usuario no identificado');
       return res.status(401).json({
@@ -169,7 +161,6 @@ exports.createEventRequest = async (req, res) => {
       });
     }
     
-    // Verificar que el usuario tenga el rol de artista
     if (req.user.role !== 'artist' && req.user.role !== 'admin') {
       console.error(`Error de permisos: Usuario con rol ${req.user.role} intentando crear solicitud`);
       return res.status(403).json({
@@ -193,7 +184,6 @@ exports.createEventRequest = async (req, res) => {
       requerimientosAdicionales
     } = req.body;
     
-    // Validar campos obligatorios
     if (!managerId || !spaceId || !titulo || !fecha || !horaInicio || !horaFin) {
       return res.status(400).json({
         success: false,
@@ -202,7 +192,6 @@ exports.createEventRequest = async (req, res) => {
       });
     }
     
-    // El artista que crea la solicitud es el usuario autenticado
     const artistId = req.user.id;
     
     console.log('Creando solicitud de evento con datos validados:', {
@@ -213,7 +202,6 @@ exports.createEventRequest = async (req, res) => {
       fecha
     });
     
-    // Crear la solicitud
     const eventRequest = await EventRequest.create({
       artistId,
       managerId,
@@ -247,13 +235,11 @@ exports.createEventRequest = async (req, res) => {
   }
 };
 
-// Actualizar el estado de una solicitud de evento
 exports.updateEventRequestStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, rejectionReason } = req.body;
     
-    // Verificar que el estado sea válido
     if (!['pendiente', 'aprobado', 'rechazado'].includes(status)) {
       return res.status(400).json({
         success: false,
@@ -261,7 +247,6 @@ exports.updateEventRequestStatus = async (req, res) => {
       });
     }
     
-    // Buscar la solicitud
     const eventRequest = await EventRequest.findByPk(id);
     
     if (!eventRequest) {
@@ -271,7 +256,6 @@ exports.updateEventRequestStatus = async (req, res) => {
       });
     }
     
-    // Verificar que el usuario sea el gestor de la solicitud
     if (eventRequest.managerId !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -279,7 +263,6 @@ exports.updateEventRequestStatus = async (req, res) => {
       });
     }
     
-    // Si se rechaza, verificar que haya un motivo
     if (status === 'rechazado' && !rejectionReason) {
       return res.status(400).json({
         success: false,
@@ -287,7 +270,6 @@ exports.updateEventRequestStatus = async (req, res) => {
       });
     }
     
-    // Actualizar el estado
     eventRequest.status = status;
     if (status === 'rechazado') {
       eventRequest.rejectionReason = rejectionReason;
@@ -310,12 +292,10 @@ exports.updateEventRequestStatus = async (req, res) => {
   }
 };
 
-// Endpoint alternativo para crear solicitudes de eventos sin token de autenticación
 exports.createEventRequestWithoutToken = async (req, res) => {
   try {
     console.log('Recibida solicitud para crear evento sin token:', req.body);
     
-    // Verificar que se proporcionaron los datos necesarios
     const { artistId, managerId, spaceId, titulo, descripcion, fecha, horaInicio, horaFin, asistentesEsperados, tipoEvento, categoria, requerimientosAdicionales } = req.body;
     
     if (!artistId || !managerId || !spaceId || !titulo || !descripcion || !fecha || !horaInicio || !horaFin) {
@@ -325,7 +305,6 @@ exports.createEventRequestWithoutToken = async (req, res) => {
       });
     }
     
-    // Verificar que el artista existe
     const artist = await User.findByPk(artistId);
     if (!artist) {
       console.log(`No se encontró el artista con ID: ${artistId}`);
@@ -335,7 +314,6 @@ exports.createEventRequestWithoutToken = async (req, res) => {
       });
     }
     
-    // Verificar que el gestor existe
     const manager = await User.findByPk(managerId);
     if (!manager) {
       console.log(`No se encontró el gestor con ID: ${managerId}`);
@@ -345,7 +323,6 @@ exports.createEventRequestWithoutToken = async (req, res) => {
       });
     }
     
-    // Verificar que el espacio cultural existe
     const space = await CulturalSpace.findByPk(spaceId);
     if (!space) {
       console.log(`No se encontró el espacio cultural con ID: ${spaceId}`);
@@ -355,14 +332,12 @@ exports.createEventRequestWithoutToken = async (req, res) => {
       });
     }
     
-    // Crear metadatos para almacenar información adicional
     const metadatos = {
       artistEmail: req.body.artistEmail || artist.email || 'No disponible',
       spaceName: req.body.spaceName || space.nombre || 'Espacio Cultural',
       spaceAddress: req.body.spaceAddress || space.direccion || '',
     };
     
-    // Crear la solicitud de evento
     const eventRequest = await EventRequest.create({
       artistId,
       managerId,
@@ -398,12 +373,10 @@ exports.createEventRequestWithoutToken = async (req, res) => {
   }
 };
 
-// Función para obtener las solicitudes de un artista sin token
 exports.getArtistRequestsWithoutToken = async (req, res) => {
   try {
     const { artistId } = req.params;
     
-    // Validar que se proporcionó un ID de artista
     if (!artistId) {
       return res.status(400).json({
         success: false,
@@ -413,10 +386,8 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
     
     console.log('Buscando solicitudes para el artista:', artistId);
     
-    // Usar una consulta SQL directa para evitar problemas con asociaciones
     try {
       console.log('Ejecutando consulta SQL directa');
-      // Obtener el nombre real de la tabla desde el modelo
       const tableName = EventRequest.getTableName();
       console.log(`Nombre real de la tabla: ${tableName}`);
       
@@ -428,12 +399,10 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
         }
       );
       
-      // Asegurarse de que los resultados sean siempre un array
       const requests = Array.isArray(results) ? results : [results].filter(r => r);
       console.log(`Encontradas ${requests.length} solicitudes en consulta SQL directa`);
       console.log('Solicitudes encontradas:', JSON.stringify(requests[0], null, 2));
       
-      // Si no se encuentran solicitudes, devolver un array vacío
       if (!requests || requests.length === 0) {
         console.log('No se encontraron solicitudes para el artista:', artistId);
         return res.status(200).json({
@@ -443,10 +412,8 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
         });
       }
       
-      // Obtener los nombres reales de los espacios culturales
       console.log('Solicitudes encontradas:', JSON.stringify(requests, null, 2));
       
-      // Obtener los IDs de espacios de las solicitudes
       const spaceIds = [];
       for (const req of requests) {
         if (req.spaceId && !spaceIds.includes(req.spaceId)) {
@@ -456,15 +423,12 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
       
       console.log('IDs de espacios a buscar:', spaceIds);
       
-      // Mapa para almacenar los espacios por ID
       const spacesMap = {};
       
-      // Buscar los espacios culturales uno por uno para mayor confiabilidad
       for (const spaceId of spaceIds) {
         try {
           console.log(`Buscando espacio cultural con ID: ${spaceId}`);
           
-          // Intentar buscar el espacio usando Sequelize primero
           const space = await CulturalSpace.findByPk(spaceId);
           
           if (space) {
@@ -475,7 +439,6 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
               direccion: space.direccion || ''
             };
           } else {
-            // Si no se encuentra con Sequelize, intentar con consulta SQL directa
             const [spaceResults] = await sequelize.query(
               `SELECT id, nombre, direccion FROM CulturalSpaces WHERE id = :spaceId LIMIT 1`,
               {
@@ -503,12 +466,9 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
       
       console.log('Mapa de espacios creado:', JSON.stringify(spacesMap, null, 2));
       
-      // Transformar las solicitudes al formato esperado por el frontend
       const validRequests = requests.map(request => {
-        // Buscar el espacio cultural correspondiente
         const space = spacesMap[request.spaceId] || { nombre: 'Espacio Cultural', direccion: '' };
         
-        // Intentar extraer metadatos si existen
         let metadatos = {};
         try {
           if (request.metadatos) {
@@ -539,10 +499,8 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
           rejectionReason: request.rejectionReason || '',
           createdAt: request.createdAt || new Date(),
           updatedAt: request.updatedAt || new Date(),
-          // Priorizar el nombre del espacio de los metadatos, luego del espacio encontrado, y por último un valor por defecto
           spaceName: metadatos.spaceName || space.nombre || 'Espacio Cultural',
           spaceAddress: metadatos.spaceAddress || space.direccion || '',
-          // Incluir los metadatos originales para que el frontend pueda procesarlos si es necesario
           metadatos: request.metadatos || '',
           artistName: 'Artista',
           managerName: 'Gestor'
@@ -558,7 +516,6 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
       });
     } catch (sqlError) {
       console.error('Error en consulta SQL directa:', sqlError);
-      // Si falla la consulta SQL directa, intentar con Sequelize sin asociaciones
       console.log('Intentando con consulta Sequelize simple');
       const requests = await EventRequest.findAll({
         where: {
@@ -569,7 +526,6 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
       
       console.log(`Encontradas ${requests ? requests.length : 0} solicitudes en consulta Sequelize`);
       
-      // Si no se encuentran solicitudes, devolver un array vacío
       if (!requests || requests.length === 0) {
         console.log('No se encontraron solicitudes para el artista:', artistId);
         return res.status(200).json({
@@ -579,11 +535,8 @@ exports.getArtistRequestsWithoutToken = async (req, res) => {
         });
       }
       
-      // Transformar las solicitudes al formato esperado por el frontend
-      // Usar false para indicar que no hay asociaciones disponibles
       const transformedRequests = requests.map(request => transformEventRequest(request, false));
       
-      // Filtrar solicitudes nulas (por si alguna transformación falló)
       const validRequests = transformedRequests.filter(req => req !== null);
       
       console.log(`Se encontraron ${validRequests.length} solicitudes válidas para el artista ${artistId}`);

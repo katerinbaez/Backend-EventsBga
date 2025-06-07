@@ -1,30 +1,26 @@
+// Rutas para gestión de slots bloqueados
+// Maneja la disponibilidad y bloqueo de horarios
+
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const BlockedSlot = require('../models/BlockedSlot');
 const { Op } = require('sequelize');
 
-// Obtener todos los slots bloqueados de un espacio
 router.get('/space/:spaceId', async (req, res) => {
   try {
     const { spaceId } = req.params;
     
-    // Obtener la fecha actual
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
     
     const blockedSlots = await BlockedSlot.findAll({
       where: {
         managerId: spaceId,
-        // Solo mostrar slots bloqueados actuales o futuros
         [Op.or]: [
-          // Para slots recurrentes (semanales)
           { isRecurring: true },
-          // Para slots específicos de fecha
           {
             isRecurring: false,
-            // Aquí iría la condición de fecha, pero como no tenemos un campo de fecha específico
-            // en el modelo actual, tendríamos que adaptarlo según la estructura real
           }
         ]
       },
@@ -34,9 +30,7 @@ router.get('/space/:spaceId', async (req, res) => {
       ]
     });
     
-    // Formatear los datos para el frontend
     const formattedBlockedSlots = blockedSlots.map(slot => {
-      // Mapear los días de la semana si es recurrente
       const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
       
       return {
@@ -45,7 +39,6 @@ router.get('/space/:spaceId', async (req, res) => {
         dayName: slot.dayName || (slot.day !== null ? dayNames[slot.day] : null),
         hour: slot.hour,
         isRecurring: slot.isRecurring,
-        // Formatear la hora para mostrarla en formato HH:MM
         startTime: `${slot.hour.toString().padStart(2, '0')}:00`,
         endTime: `${(slot.hour + 1).toString().padStart(2, '0')}:00`
       };
@@ -65,14 +58,12 @@ router.get('/space/:spaceId', async (req, res) => {
   }
 });
 
-// Crear un nuevo slot bloqueado
 router.post('/space/:spaceId', authenticateToken, async (req, res) => {
   try {
     const { spaceId } = req.params;
     const userId = req.user.id;
     const userRole = req.user.role;
     
-    // Verificar que el usuario sea un gestor o administrador
     if (userRole !== 'manager' && userRole !== 'admin') {
       return res.status(403).json({ 
         success: false, 
@@ -82,7 +73,6 @@ router.post('/space/:spaceId', authenticateToken, async (req, res) => {
     
     const { day, hour, isRecurring, dayName } = req.body;
     
-    // Validar datos
     if (hour === undefined || (isRecurring && day === undefined)) {
       return res.status(400).json({ 
         success: false, 
@@ -90,7 +80,6 @@ router.post('/space/:spaceId', authenticateToken, async (req, res) => {
       });
     }
     
-    // Verificar si ya existe un slot bloqueado para esa hora y día
     const existingSlot = await BlockedSlot.findOne({
       where: {
         managerId: spaceId,
@@ -107,7 +96,6 @@ router.post('/space/:spaceId', authenticateToken, async (req, res) => {
       });
     }
     
-    // Crear nuevo slot bloqueado
     const blockedSlot = await BlockedSlot.create({
       managerId: spaceId,
       day,
@@ -132,14 +120,12 @@ router.post('/space/:spaceId', authenticateToken, async (req, res) => {
   }
 });
 
-// Eliminar un slot bloqueado
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
     const userRole = req.user.role;
     
-    // Verificar que el usuario sea un gestor o administrador
     if (userRole !== 'manager' && userRole !== 'admin') {
       return res.status(403).json({ 
         success: false, 

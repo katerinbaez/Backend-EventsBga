@@ -1,26 +1,26 @@
+// Rutas de espacios culturales
+// Gestiona la disponibilidad y bloqueo de horarios de espacios
+
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const SpaceAvailability = require('../models/SpaceAvailability');
 const { Op } = require('sequelize');
 
-// Obtener todas las disponibilidades de un espacio
 router.get('/space/:spaceId', async (req, res) => {
   try {
     const { spaceId } = req.params;
     
     const availabilities = await SpaceAvailability.findAll({
       where: {
-        managerId: spaceId // Usando managerId como referencia al espacio
+        managerId: spaceId
       },
       order: [['dayOfWeek', 'ASC']]
     });
     
-    // Formatear los datos para el frontend
     const formattedAvailabilities = availabilities.map(availability => {
       const hourSlots = availability.hourSlots || [];
       
-      // Mapear los días de la semana
       const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
       const dayName = dayNames[availability.dayOfWeek];
       
@@ -49,14 +49,12 @@ router.get('/space/:spaceId', async (req, res) => {
   }
 });
 
-// Crear o actualizar disponibilidad para un espacio
 router.post('/space/:spaceId', authenticateToken, async (req, res) => {
   try {
     const { spaceId } = req.params;
     const userId = req.user.id;
     const userRole = req.user.role;
     
-    // Verificar que el usuario sea un gestor o administrador
     if (userRole !== 'manager' && userRole !== 'admin') {
       return res.status(403).json({ 
         success: false, 
@@ -66,7 +64,6 @@ router.post('/space/:spaceId', authenticateToken, async (req, res) => {
     
     const { dayOfWeek, hourSlots } = req.body;
     
-    // Validar datos
     if (dayOfWeek === undefined || !hourSlots || !Array.isArray(hourSlots)) {
       return res.status(400).json({ 
         success: false, 
@@ -74,7 +71,6 @@ router.post('/space/:spaceId', authenticateToken, async (req, res) => {
       });
     }
     
-    // Buscar si ya existe una disponibilidad para ese día
     let availability = await SpaceAvailability.findOne({
       where: {
         managerId: spaceId,
@@ -83,11 +79,9 @@ router.post('/space/:spaceId', authenticateToken, async (req, res) => {
     });
     
     if (availability) {
-      // Actualizar disponibilidad existente
       availability.hourSlots = hourSlots;
       await availability.save();
     } else {
-      // Crear nueva disponibilidad
       availability = await SpaceAvailability.create({
         managerId: spaceId,
         dayOfWeek,
@@ -110,14 +104,12 @@ router.post('/space/:spaceId', authenticateToken, async (req, res) => {
   }
 });
 
-// Eliminar disponibilidad para un día específico
 router.delete('/space/:spaceId/day/:dayOfWeek', authenticateToken, async (req, res) => {
   try {
     const { spaceId, dayOfWeek } = req.params;
     const userId = req.user.id;
     const userRole = req.user.role;
     
-    // Verificar que el usuario sea un gestor o administrador
     if (userRole !== 'manager' && userRole !== 'admin') {
       return res.status(403).json({ 
         success: false, 
@@ -125,7 +117,6 @@ router.delete('/space/:spaceId/day/:dayOfWeek', authenticateToken, async (req, r
       });
     }
     
-    // Buscar la disponibilidad
     const availability = await SpaceAvailability.findOne({
       where: {
         managerId: spaceId,

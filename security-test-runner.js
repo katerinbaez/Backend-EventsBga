@@ -1,8 +1,10 @@
+// Script de pruebas de seguridad
+// Ejecuta pruebas de seguridad y vulnerabilidades del sistema
+
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-// Colores para la consola
 const colors = {
   reset: '\x1b[0m',
   bright: '\x1b[1m',
@@ -35,7 +37,6 @@ const colors = {
   }
 };
 
-// Función para ejecutar comandos y mostrar la salida
 function runCommand(command, description) {
   console.log(`\n${colors.fg.cyan}${colors.bright}=== ${description} ===${colors.reset}\n`);
   try {
@@ -48,7 +49,6 @@ function runCommand(command, description) {
   }
 }
 
-// Función para esperar la entrada del usuario
 function waitForUserInput(prompt) {
   return new Promise((resolve) => {
     console.log(`\n${colors.fg.yellow}${prompt} (Presiona Enter para continuar)${colors.reset}`);
@@ -58,7 +58,6 @@ function waitForUserInput(prompt) {
   });
 }
 
-// Función principal para ejecutar las pruebas
 async function runSecurityTests() {
   console.log(`\n${colors.fg.magenta}${colors.bright}========================================${colors.reset}`);
   console.log(`${colors.fg.magenta}${colors.bright}   PRUEBAS DE SEGURIDAD PARA EL BACKEND   ${colors.reset}`);
@@ -69,7 +68,6 @@ async function runSecurityTests() {
   
   await waitForUserInput('¿Listo para comenzar las pruebas de seguridad del backend?');
   
-  // 1. Verificar dependencias con npm audit
   console.log(`\n${colors.fg.cyan}${colors.bright}PASO 1: Verificación de dependencias${colors.reset}`);
   const auditSuccess = runCommand('npm audit', 'Verificando vulnerabilidades en dependencias');
   
@@ -78,25 +76,21 @@ async function runSecurityTests() {
     await waitForUserInput('¿Deseas continuar con las pruebas a pesar de las vulnerabilidades?');
   }
   
-  // 2. Ejecutar pruebas de autenticación
   console.log(`\n${colors.fg.cyan}${colors.bright}PASO 2: Pruebas de autenticación${colors.reset}`);
   await waitForUserInput('¿Listo para ejecutar las pruebas de autenticación?');
   
   runCommand('npx jest --testMatch="**/__tests__/security/auth.security.test.js"', 'Ejecutando pruebas de autenticación');
   
-  // 3. Ejecutar pruebas de autorización
   console.log(`\n${colors.fg.cyan}${colors.bright}PASO 3: Pruebas de autorización${colors.reset}`);
   await waitForUserInput('¿Listo para ejecutar las pruebas de autorización?');
   
   runCommand('npx jest --testMatch="**/__tests__/security/authorization.security.test.js"', 'Ejecutando pruebas de autorización');
   
-  // 4. Ejecutar pruebas de seguridad de API
   console.log(`\n${colors.fg.cyan}${colors.bright}PASO 4: Pruebas de seguridad de API${colors.reset}`);
   await waitForUserInput('¿Listo para ejecutar las pruebas de seguridad de API?');
   
   runCommand('npx jest --testMatch="**/__tests__/security/api.security.test.js"', 'Ejecutando pruebas de seguridad de API');
   
-  // 5. Resumen de resultados
   console.log(`\n${colors.fg.magenta}${colors.bright}========================================${colors.reset}`);
   console.log(`${colors.fg.magenta}${colors.bright}   RESUMEN DE PRUEBAS DE SEGURIDAD   ${colors.reset}`);
   console.log(`${colors.fg.magenta}${colors.bright}========================================${colors.reset}\n`);
@@ -116,5 +110,4 @@ async function runSecurityTests() {
   console.log(`\n${colors.fg.green}${colors.bright}¡Pruebas de seguridad completadas!${colors.reset}\n`);
 }
 
-// Ejecutar las pruebas
 runSecurityTests().catch(console.error);

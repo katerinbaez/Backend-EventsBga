@@ -1,11 +1,12 @@
+// Controlador de espacios culturales
+// Maneja la gestión de espacios, horarios y bloques de tiempo
+
 const { Manager } = require('../models/Manager');
 const { Event } = require('../models/Event');
 
-// Importar los modelos para disponibilidad y horarios bloqueados
 const SpaceAvailability = require('../models/SpaceAvailability');
 const BlockedSlot = require('../models/BlockedSlot');
 
-// Obtener datos del espacio cultural por ID de manager
 exports.getSpaceByManagerId = async (req, res) => {
   try {
     const { managerId } = req.params;
@@ -29,7 +30,6 @@ exports.getSpaceByManagerId = async (req, res) => {
   }
 };
 
-// Obtener configuración de disponibilidad
 exports.getAvailability = async (req, res) => {
   try {
     const { managerId } = req.params;
@@ -37,18 +37,15 @@ exports.getAvailability = async (req, res) => {
     
     console.log(`🔍 Obteniendo disponibilidad para manager: ${managerId}${date ? `, fecha: ${date}` : ''}`);
     
-    // Verificar si el manager existe
     const manager = await Manager.findOne({ where: { userId: managerId } });
     if (!manager) {
       return res.status(404).json({ success: false, message: 'Gestor cultural no encontrado' });
     }
     
-    // Construir condición de búsqueda
     const whereCondition = { 
       managerId: manager.id
     };
     
-    // Si hay fecha específica, buscar por esa fecha
     if (date) {
       whereCondition.date = date;
       console.log(`🔍 Buscando disponibilidad para fecha específica: ${date}`);
@@ -57,23 +54,18 @@ exports.getAvailability = async (req, res) => {
       console.log('🔍 Buscando disponibilidad recurrente (sin fecha específica)');
     }
     
-    // Buscar registros de disponibilidad
     const availabilityRecords = await SpaceAvailability.findAll({ 
       where: whereCondition 
     });
     
     console.log(`📊 Registros encontrados: ${availabilityRecords.length}`);
 
-    // Si no hay registros, crear disponibilidad por defecto
     if (availabilityRecords.length === 0) {
-      // Crear disponibilidad por defecto (todos los días, horario comercial)
       const availability = {};
       for (let day = 0; day <= 6; day++) {
-        // Horario de 8am a 8pm por defecto
         const availableHours = Array.from({ length: 13 }, (_, i) => i + 8);
         availability[day] = availableHours;
         
-        // Guardar en la base de datos
         await SpaceAvailability.create({
           managerId: manager.id,
           dayOfWeek: day,
@@ -89,7 +81,6 @@ exports.getAvailability = async (req, res) => {
       });
     }
 
-    // Formatear resultado
     const availability = {};
     availabilityRecords.forEach(record => {
       availability[record.dayOfWeek] = record.hourSlots;
@@ -110,7 +101,6 @@ exports.getAvailability = async (req, res) => {
   }
 };
 
-// Actualizar configuración de disponibilidad
 exports.updateAvailability = async (req, res) => {
   try {
     const { managerId } = req.params;
@@ -122,11 +112,9 @@ exports.updateAvailability = async (req, res) => {
       specificDate 
     }));
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     console.log(`🔍 ID decodificado: ${decodedManagerId}`);
     
-    // Verificar si el manager existe
     const manager = await Manager.findOne({ where: { userId: decodedManagerId } });
     if (!manager) {
       console.log(`❌ Manager no encontrado: ${decodedManagerId}`);
@@ -135,12 +123,10 @@ exports.updateAvailability = async (req, res) => {
     
     console.log(`✅ Manager encontrado: ${manager.id}, userId: ${manager.userId}`);
 
-    // Si hay fecha específica, eliminar configuraciones anteriores para esa fecha
     if (specificDate) {
       try {
         console.log(`🗑️ Eliminando configuraciones anteriores para la fecha: ${specificDate}`);
         
-        // Eliminar usando tanto el ID como el userId para asegurar que se eliminen todos los registros
         const deleted1 = await SpaceAvailability.destroy({
           where: {
             managerId: manager.id,
@@ -160,7 +146,6 @@ exports.updateAvailability = async (req, res) => {
         console.error('Error al eliminar configuraciones anteriores:', deleteError);
       }
     } else {
-      // Si es configuración general, eliminar configuraciones generales anteriores
       try {
         console.log(`🗑️ Eliminando configuraciones generales anteriores`);
         
@@ -184,7 +169,6 @@ exports.updateAvailability = async (req, res) => {
       }
     }
 
-    // Procesar cada día en la configuración recibida
     const updatedSettings = [];
     
     for (const dayKey in availability) {
@@ -204,15 +188,12 @@ exports.updateAvailability = async (req, res) => {
       console.log(`📝 Horas disponibles: ${hours.join(', ')}`);
       
       try {
-        // Crear nuevo registro directamente
         const newRecord = {
-          // IMPORTANTE: Usar el ID decodificado (userId) en lugar del ID del manager
           managerId: decodedManagerId,
           dayOfWeek,
           hourSlots: hours
         };
         
-        // Si hay fecha específica, incluirla en date
         if (specificDate) {
           newRecord.date = specificDate;
         } else {
@@ -259,17 +240,14 @@ exports.updateAvailability = async (req, res) => {
   }
 };
 
-// Obtener slots bloqueados
 exports.getBlockedSlots = async (req, res) => {
   try {
     const { managerId } = req.params;
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
     console.log(`🔍 Buscando slots bloqueados para manager: ${decodedManagerId}`);
     
-    // Verificar si el manager existe
     const manager = await Manager.findOne({ where: { userId: decodedManagerId } });
     if (!manager) {
       return res.status(404).json({ success: false, message: 'Gestor cultural no encontrado' });
@@ -277,7 +255,6 @@ exports.getBlockedSlots = async (req, res) => {
 
     console.log(`✅ Manager encontrado: ${manager.id} (userId: ${manager.userId})`);
 
-    // Buscar slots bloqueados por userId (formato OAuth)
     const blockedSlotsByUserId = await BlockedSlot.findAll({ 
       where: { managerId: manager.userId },
       order: [['hour', 'ASC']]
@@ -285,7 +262,6 @@ exports.getBlockedSlots = async (req, res) => {
     
     console.log(`📋 Encontrados ${blockedSlotsByUserId.length} slots bloqueados por userId`);
     
-    // Buscar slots bloqueados por id (formato UUID)
     const blockedSlotsById = await BlockedSlot.findAll({ 
       where: { managerId: manager.id },
       order: [['hour', 'ASC']]
@@ -293,12 +269,9 @@ exports.getBlockedSlots = async (req, res) => {
     
     console.log(`📋 Encontrados ${blockedSlotsById.length} slots bloqueados por id`);
     
-    // Combinar resultados (eliminando duplicados)
     const allSlots = [...blockedSlotsByUserId];
     
-    // Agregar slots por id solo si no están ya incluidos
     for (const slot of blockedSlotsById) {
-      // Crear una clave única que incluya fecha o día + hora
       const slotKey = slot.date 
         ? `${slot.date}-${slot.hour}` 
         : `${slot.day}-${slot.hour}`;
@@ -318,7 +291,6 @@ exports.getBlockedSlots = async (req, res) => {
     
     console.log(`📋 Total de slots únicos: ${allSlots.length}`);
     
-    // Mostrar detalles de cada slot para diagnóstico
     allSlots.forEach((slot, index) => {
       console.log(`📌 Slot ${index + 1}:`, {
         id: slot.id,
@@ -331,35 +303,29 @@ exports.getBlockedSlots = async (req, res) => {
       });
     });
     
-    // Formatear los resultados para el frontend
     const formattedSlots = allSlots.map(slot => {
-      // Usar la hora tal como viene
       const hourNum = slot.hour;
       
-      // Si el slot tiene fecha específica, usarla
       if (slot.date) {
         return {
           id: slot.id,
           date: slot.date,
           hour: hourNum,
-          isRecurring: false, // Slots con fecha específica nunca son recurrentes
-          managerId: slot.managerId // Agregar managerId para diagnóstico
+          isRecurring: false,
+          managerId: slot.managerId
         };
       }
       
-      // Para slots recurrentes (por día de la semana)
-      // CORRECCIÓN: Usar el día guardado en la base de datos en lugar del día actual
-      // Si el slot no tiene día definido, usar el día actual como fallback
       const today = new Date();
       const slotDay = slot.day !== undefined ? slot.day : today.getDay();
       
       return {
         id: slot.id,
         day: slotDay,
-        dayName: slot.dayName, // Incluir el nombre del día si está disponible
+        dayName: slot.dayName,
         hour: hourNum,
         isRecurring: Boolean(slot.isRecurring),
-        managerId: slot.managerId // Agregar managerId para diagnóstico
+        managerId: slot.managerId
       };
     });
 
@@ -377,20 +343,16 @@ exports.getBlockedSlots = async (req, res) => {
   }
 };
 
-// Obtener slots bloqueados con formato detallado
 exports.getBlockedSlotsDetailed = async (req, res) => {
   try {
     const { managerId } = req.params;
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
     console.log(`🔍 Buscando slots bloqueados detallados para manager: ${decodedManagerId}`);
     
-    // Buscar todos los slots bloqueados
     let allSlots = [];
     
-    // Buscar por userId (formato OAuth)
     const slotsByUserId = await BlockedSlot.findAll({
       where: { managerId: decodedManagerId },
       order: [['hour', 'ASC']]
@@ -399,7 +361,6 @@ exports.getBlockedSlotsDetailed = async (req, res) => {
     console.log(`📋 Encontrados ${slotsByUserId.length} slots por userId`);
     allSlots = [...slotsByUserId];
     
-    // Buscar también por el manager.id (formato UUID) si existe
     const manager = await Manager.findOne({ where: { userId: decodedManagerId } });
     if (manager) {
       const slotsById = await BlockedSlot.findAll({
@@ -409,7 +370,6 @@ exports.getBlockedSlotsDetailed = async (req, res) => {
       
       console.log(`📋 Encontrados ${slotsById.length} slots adicionales por id`);
       
-      // Agregar slots que no estén duplicados
       for (const slot of slotsById) {
         const isDuplicate = allSlots.some(
           existingSlot => existingSlot.hour === slot.hour
@@ -423,25 +383,20 @@ exports.getBlockedSlotsDetailed = async (req, res) => {
     
     console.log(`📋 Total de slots únicos: ${allSlots.length}`);
     
-    // Agrupar por fecha usando createdAt
     const slotsByDate = {};
     
     allSlots.forEach(slot => {
-      // Usar la hora tal como viene
       const hourNum = slot.hour;
       
-      // Usar createdAt para obtener la fecha correcta
       const createdDate = new Date(slot.createdAt);
       const date = createdDate.toISOString().split('T')[0];
       
       console.log(`📅 Slot creado en: ${date}, hora: ${hourNum}`);
       
-      // Inicializar array para esta fecha si no existe
       if (!slotsByDate[date]) {
         slotsByDate[date] = [];
       }
       
-      // Agregar slot a la fecha correspondiente
       slotsByDate[date].push({
         id: slot.id,
         hour: hourNum,
@@ -451,20 +406,18 @@ exports.getBlockedSlotsDetailed = async (req, res) => {
       });
     });
     
-    // Convertir a formato más amigable para el frontend
     const formattedResult = Object.keys(slotsByDate).map(date => {
-      // Crear objeto Date para obtener el día de la semana
       const dateObj = new Date(date);
-      const dayOfWeek = dateObj.getDay(); // 0: domingo, 1: lunes, etc.
+      const dayOfWeek = dateObj.getDay();
       const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
       
       return {
         date,
         dayOfWeek,
         dayName: dayNames[dayOfWeek],
-        slots: slotsByDate[date].sort((a, b) => a.hour - b.hour) // Ordenar por hora
+        slots: slotsByDate[date].sort((a, b) => a.hour - b.hour)
       };
-    }).sort((a, b) => new Date(a.date) - new Date(b.date)); // Ordenar por fecha
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
     
     return res.status(200).json({
       success: true,
@@ -481,7 +434,6 @@ exports.getBlockedSlotsDetailed = async (req, res) => {
   }
 };
 
-// Bloquear slot
 exports.blockSlot = async (req, res) => {
   try {
     console.log('⭐ Iniciando blockSlot con parámetros:', {
@@ -492,7 +444,6 @@ exports.blockSlot = async (req, res) => {
     const { managerId } = req.params;
     const { date, hour, day, dayName, isRecurring = false } = req.body;
     
-    // Verificar datos recibidos
     if (hour === undefined) {
       console.log('❌ Error: Datos incompletos para bloquear slot');
       return res.status(400).json({
@@ -505,11 +456,9 @@ exports.blockSlot = async (req, res) => {
       date, hour, day, dayName, isRecurring
     });
     
-    // Convertir hora a entero
     const hourNum = parseInt(hour);
     console.log('🕒 Hora validada:', hourNum);
     
-    // Validar que la hora esté dentro del rango válido (0-23)
     if (hourNum < 0 || hourNum > 23) {
       return res.status(400).json({
         success: false,
@@ -517,11 +466,9 @@ exports.blockSlot = async (req, res) => {
       });
     }
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     console.log('🔍 ID decodificado:', decodedManagerId);
     
-    // Buscar el manager por userId (para IDs de OAuth)
     let manager = await Manager.findOne({ where: { userId: decodedManagerId } });
     
     if (manager) {
@@ -530,7 +477,6 @@ exports.blockSlot = async (req, res) => {
         userId: manager.userId
       });
     } else {
-      // Si no se encuentra, intentar buscar directamente por ID (para UUIDs)
       manager = await Manager.findByPk(decodedManagerId);
       
       if (manager) {
@@ -543,37 +489,32 @@ exports.blockSlot = async (req, res) => {
       }
     }
     
-    // Si aún no se encuentra, crear un slot bloqueado usando directamente el ID recibido
     if (!manager) {
       console.log('🔍 Usando ID recibido directamente para bloquear slot');
       
-      // Preparar datos para la creación del slot
       const slotData = {
-        managerId: decodedManagerId, // Usar el ID recibido directamente
+        managerId: decodedManagerId,
         hour: hourNum,
         day: day !== undefined ? parseInt(day, 10) : undefined,
         dayName,
-        date: date || null, // Añadir fecha específica si existe
-        dateStr: date || null, // Guardar también como string para compatibilidad
-        isRecurring: date ? false : isRecurring // Si hay fecha específica, no es recurrente
+        date: date || null,
+        dateStr: date || null,
+        isRecurring: date ? false : isRecurring
       };
       
       console.log('📅 Datos del slot a crear:', slotData);
       
       console.log('🔍 Verificando si ya existe slot con datos:', slotData);
       
-      // Verificar si ya existe un slot bloqueado
       const whereConditions = {
         managerId: decodedManagerId,
         hour: hourNum
       };
       
-      // Si se especificó una fecha específica, buscar por fecha
       if (date) {
         whereConditions.date = date;
         console.log('🔍 Buscando por fecha específica:', date);
       } 
-      // Si no hay fecha pero hay día, buscar por día
       else if (day !== undefined) {
         whereConditions.day = parseInt(day, 10);
         console.log('🔍 Buscando por día recurrente:', day);
@@ -597,7 +538,6 @@ exports.blockSlot = async (req, res) => {
       console.log('✅ Creando nuevo slot bloqueado con datos:', slotData);
       
       try {
-        // Crear el slot bloqueado
         const blockedSlot = await BlockedSlot.create(slotData);
         console.log('✅ Slot bloqueado creado:', blockedSlot.toJSON());
         
@@ -616,30 +556,26 @@ exports.blockSlot = async (req, res) => {
       }
     }
     
-    // Preparar datos para la creación del slot
     const slotData = {
-      managerId: manager.userId, // Usar userId en lugar de id para mantener el formato OAuth
+      managerId: manager.userId,
       hour: hourNum,
       day: day !== undefined ? parseInt(day, 10) : undefined,
       dayName,
-      date: date || null, // Añadir fecha específica si existe
-      isRecurring: date ? false : isRecurring // Si hay fecha específica, no es recurrente
+      date: date || null,
+      isRecurring: date ? false : isRecurring
     };
     
     console.log('📅 Datos del slot a crear:', slotData);
     
-    // Preparar condiciones de búsqueda para verificar si ya existe
     const whereCondition = {
-      managerId: manager.userId, // Usar userId en lugar de id para mantener el formato OAuth
+      managerId: manager.userId, 
       hour: hourNum
     };
     
-    // Si se especificó una fecha específica, incluirla en la condición
     if (date) {
       whereCondition.date = date;
       console.log('🔍 Buscando por fecha específica:', date);
     } 
-    // Si no hay fecha pero hay día, buscar por día
     else if (day !== undefined) {
       whereCondition.day = parseInt(day, 10);
       console.log('🔍 Buscando por día recurrente:', day);
@@ -647,7 +583,6 @@ exports.blockSlot = async (req, res) => {
     
     console.log('🔍 Condiciones de búsqueda:', whereCondition);
     
-    // Verificar si el slot ya está bloqueado
     const existingSlot = await BlockedSlot.findOne({
       where: whereCondition
     });
@@ -664,7 +599,6 @@ exports.blockSlot = async (req, res) => {
     console.log('✅ Creando nuevo slot bloqueado con datos:', slotData);
     
     try {
-      // Crear el slot bloqueado
       const blockedSlot = await BlockedSlot.create(slotData);
       console.log('✅ Slot bloqueado creado:', blockedSlot.toJSON());
       
@@ -691,7 +625,7 @@ exports.blockSlot = async (req, res) => {
   }
 };
 
-// Desbloquear slot
+
 exports.unblockSlot = async (req, res) => {
   try {
     console.log('⭐ Iniciando unblockSlot con parámetros:', {
@@ -710,7 +644,6 @@ exports.unblockSlot = async (req, res) => {
       });
     }
     
-    // Validar hora (0-23)
     const hourNum = parseInt(hour);
     if (isNaN(hourNum) || hourNum < 0 || hourNum > 23) {
       return res.status(400).json({
@@ -719,11 +652,9 @@ exports.unblockSlot = async (req, res) => {
       });
     }
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     console.log('🔍 ID decodificado:', decodedManagerId);
     
-    // Buscar el manager por userId (para IDs de OAuth)
     let manager = await Manager.findOne({ where: { userId: decodedManagerId } });
     
     if (manager) {
@@ -732,7 +663,6 @@ exports.unblockSlot = async (req, res) => {
         userId: manager.userId
       });
     } else {
-      // Si no se encuentra, intentar buscar directamente por ID (para UUIDs)
       manager = await Manager.findByPk(decodedManagerId);
       
       if (manager) {
@@ -745,17 +675,14 @@ exports.unblockSlot = async (req, res) => {
       }
     }
     
-    // Si aún no se encuentra, intentar buscar en la tabla BlockedSlots directamente
     if (!manager) {
       console.log('🔍 Buscando directamente en BlockedSlots con managerId:', decodedManagerId);
       
-      // Preparar condiciones de búsqueda para BlockedSlot
       const whereCondition = {
         hour: hourNum,
         managerId: decodedManagerId
       };
       
-      // Si se especificó una fecha específica, incluirla en la condición
       if (date) {
         whereCondition.date = date;
         console.log('🔍 Buscando por fecha específica:', date);
@@ -763,7 +690,6 @@ exports.unblockSlot = async (req, res) => {
       
       console.log('🔍 Buscando slot bloqueado con condiciones:', whereCondition);
       
-      // Primero verificar si existe el slot
       const existingSlot = await BlockedSlot.findOne({
         where: whereCondition
       });
@@ -774,7 +700,6 @@ exports.unblockSlot = async (req, res) => {
         console.log('❌ No se encontró ningún slot bloqueado con estas condiciones');
       }
       
-      // Intentar eliminar el slot
       const deleteResult = await BlockedSlot.destroy({
         where: whereCondition
       });
@@ -794,14 +719,11 @@ exports.unblockSlot = async (req, res) => {
       }
     }
     
-    // Si encontramos el manager, usar su userId (formato OAuth) para buscar el slot bloqueado
-    // Preparar condiciones de búsqueda
     const whereCondition = {
       hour: hourNum,
-      managerId: manager.userId // Usar userId en lugar de id para mantener el formato OAuth
+      managerId: manager.userId
     };
     
-    // Si se especificó una fecha específica, incluirla en la condición
     if (date) {
       whereCondition.date = date;
       console.log('🔍 Buscando por fecha específica:', date);
@@ -809,7 +731,6 @@ exports.unblockSlot = async (req, res) => {
     
     console.log('🔍 Buscando slot bloqueado con condiciones (manager encontrado):', whereCondition);
     
-    // Verificar si existe el slot
     const existingSlot = await BlockedSlot.findOne({
       where: whereCondition
     });
@@ -819,13 +740,11 @@ exports.unblockSlot = async (req, res) => {
     } else {
       console.log('❌ No se encontró ningún slot bloqueado con estas condiciones');
       
-      // Intentar buscar con el ID del manager en lugar del userId
       const alternativeCondition = {
         hour: hourNum,
         managerId: manager.id
       };
       
-      // Si se especificó una fecha específica, incluirla en la condición alternativa
       if (date) {
         alternativeCondition.date = date;
       }
@@ -843,7 +762,6 @@ exports.unblockSlot = async (req, res) => {
       }
     }
     
-    // Intentar eliminar el slot
     const deleteResult = await BlockedSlot.destroy({
       where: whereCondition
     });
@@ -855,13 +773,11 @@ exports.unblockSlot = async (req, res) => {
         message: `Se desbloquearon ${deleteResult} horarios`
       });
     } else {
-      // Si no se eliminó ningún slot, intentar con el ID del manager
       const alternativeCondition = {
         hour: hourNum,
         managerId: manager.id
       };
       
-      // Si se especificó una fecha específica, incluirla en la condición alternativa
       if (date) {
         alternativeCondition.date = date;
       }
@@ -894,14 +810,12 @@ exports.unblockSlot = async (req, res) => {
   }
 };
 
-// Desbloquear slot por ID específico
 exports.unblockSlotById = async (req, res) => {
   try {
     const { slotId } = req.params;
     
     console.log(`⭐ Intentando desbloquear slot por ID: ${slotId}`);
     
-    // Buscar el slot por ID
     const slot = await BlockedSlot.findByPk(slotId);
     
     if (!slot) {
@@ -919,7 +833,6 @@ exports.unblockSlotById = async (req, res) => {
       hour: slot.hour
     });
     
-    // Eliminar el slot
     await slot.destroy();
     
     console.log(`🗑️ Slot eliminado correctamente`);
@@ -943,18 +856,14 @@ exports.unblockSlotById = async (req, res) => {
   }
 };
 
-// Obtener eventos del espacio cultural
 exports.getEvents = async (req, res) => {
   try {
     const { managerId } = req.params;
     
-    // Verificar si el manager existe
     const manager = await Manager.findOne({ where: { userId: managerId } });
     if (!manager) {
       return res.status(404).json({ success: false, message: 'Gestor cultural no encontrado' });
     }
-
-    // Buscar eventos del espacio cultural
     const events = await Event.findAll({
       where: { spaceId: manager.id },
       order: [['fecha', 'ASC']]
@@ -974,17 +883,14 @@ exports.getEvents = async (req, res) => {
   }
 };
 
-// Restaurar configuración (eliminar todos los slots bloqueados)
 exports.resetBlockedSlots = async (req, res) => {
   try {
     const { managerId } = req.params;
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
     console.log(`🔄 Restaurando configuración para manager: ${decodedManagerId}`);
     
-    // Verificar si el manager existe
     const manager = await Manager.findOne({ where: { userId: decodedManagerId } });
     if (!manager) {
       return res.status(404).json({ success: false, message: 'Gestor cultural no encontrado' });
@@ -992,34 +898,27 @@ exports.resetBlockedSlots = async (req, res) => {
 
     console.log(`✅ Manager encontrado: ${manager.id} (userId: ${manager.userId})`);
 
-    // Eliminar slots bloqueados por userId (formato OAuth)
     const deletedByUserId = await BlockedSlot.destroy({ 
       where: { managerId: manager.userId }
     });
     
     console.log(`🗑️ Eliminados ${deletedByUserId} slots bloqueados por userId`);
     
-    // Eliminar slots bloqueados por id (formato UUID)
     const deletedById = await BlockedSlot.destroy({ 
       where: { managerId: manager.id }
     });
     
     console.log(`🗑️ Eliminados ${deletedById} slots bloqueados por id`);
     
-    // Restaurar disponibilidad por defecto
-    // Primero eliminar configuración existente
     await SpaceAvailability.destroy({
       where: { managerId: manager.id }
     });
     
-    // Crear disponibilidad por defecto (todos los días, horario comercial)
     const availability = {};
     for (let day = 0; day <= 6; day++) {
-      // Horario de 8am a 8pm por defecto
       const availableHours = Array.from({ length: 13 }, (_, i) => i + 8);
       availability[day] = availableHours;
       
-      // Guardar en la base de datos
       await SpaceAvailability.create({
         managerId: manager.id,
         dayOfWeek: day,

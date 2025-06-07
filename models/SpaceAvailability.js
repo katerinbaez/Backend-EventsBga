@@ -26,10 +26,10 @@ const SpaceAvailability = sequelize.define('SpaceAvailability', {
     comment: 'Fecha específica de la disponibilidad (YYYY-MM-DD)'
   },
   hourSlots: {
-    type: DataTypes.TEXT, // Usar TEXT en lugar de JSON para mayor compatibilidad
+    type: DataTypes.TEXT, 
     allowNull: false,
     defaultValue: '[]',
-    field: 'availableHours', // Especificar el nombre de la columna en la base de datos
+    field: 'availableHours', 
     get() {
       const value = this.getDataValue('hourSlots');
       return value ? JSON.parse(value) : [];

@@ -1,8 +1,10 @@
+// Script para ejecutar migración específica de favoritos
+// Utiliza Umzug para manejar la migración de forma segura
+
 const { Sequelize } = require('sequelize');
 const { Umzug, SequelizeStorage } = require('umzug');
 const sequelize = require('../config/database');
 
-// Configurar Umzug para manejar migraciones
 const umzug = new Umzug({
   migrations: { 
     glob: 'migrations/20250504-modify-favorite-targetId.js',
@@ -20,7 +22,6 @@ const umzug = new Umzug({
   logger: console,
 });
 
-// Ejecutar migración
 (async () => {
   try {
     await umzug.up();

@@ -1,8 +1,10 @@
+// Migración para permitir artistId nulo en EventAttendances
+// Permite registrar asistencia sin especificar un artista
+
 'use strict';
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // Modificar la columna artistId para permitir valores nulos
     await queryInterface.changeColumn('EventAttendances', 'artistId', {
       type: Sequelize.STRING,
       allowNull: true
@@ -10,7 +12,6 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    // Revertir el cambio si es necesario
     await queryInterface.changeColumn('EventAttendances', 'artistId', {
       type: Sequelize.STRING,
       allowNull: false

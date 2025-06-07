@@ -1,3 +1,6 @@
+// Script de migración de base de datos
+// Ejecuta las migraciones pendientes usando Umzug
+
 const { Sequelize } = require('sequelize');
 const { Umzug, SequelizeStorage } = require('umzug');
 const sequelize = require('./config/database');

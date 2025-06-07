@@ -1,4 +1,3 @@
-// models/Notification.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -10,7 +9,7 @@ const Notification = sequelize.define('Notification', {
     },
     userId: {
         type: DataTypes.STRING,
-        allowNull: true, // Permite null para notificaciones de admin
+        allowNull: true, 
         references: {
             model: 'Users',
             key: 'id'

@@ -66,6 +66,4 @@ const Event = sequelize.define('Event', {
   timestamps: true
 });
 
-// Las asociaciones se manejan en el archivo associations.js
-
 module.exports = Event;

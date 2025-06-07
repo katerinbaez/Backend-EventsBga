@@ -1,3 +1,6 @@
+// Rutas de solicitudes de eventos
+// Gestiona la creación, aprobación y rechazo de solicitudes de eventos
+
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
@@ -6,12 +9,10 @@ const User = require('../models/User');
 const CulturalSpace = require('../models/CulturalSpace');
 const { Op } = require('sequelize');
 const eventRequestController = require('../controllers/eventRequestController');
-const sequelize = require('../config/database'); // Corregir la importación de sequelize
+const sequelize = require('../config/database');
 
-// Obtener todas las solicitudes de eventos (filtradas según el rol del usuario)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    // Si no hay autenticación, verificar si es admin por headers
     let userId = null;
     let userRole = null;
     
@@ -24,15 +25,12 @@ router.get('/', authenticateToken, async (req, res) => {
     
     let query = {};
     
-    // Si es artista, solo ver sus propias solicitudes
     if (userRole === 'artist' && userId) {
       query.artistId = userId;
     } 
-    // Si es gestor, solo ver solicitudes para sus espacios
     else if (userRole === 'manager' && userId) {
       query.managerId = userId;
     }
-    // Si no hay rol o ID válidos, devolver error
     else if (!userRole || userRole !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -76,12 +74,10 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Obtener solicitudes para un gestor específico
 router.get('/manager/:managerId', authenticateToken, async (req, res) => {
   try {
     const { managerId } = req.params;
     
-    // Si no hay autenticación, verificar si es admin por headers
     let userId = null;
     let userRole = null;
     
@@ -92,7 +88,6 @@ router.get('/manager/:managerId', authenticateToken, async (req, res) => {
       userRole = 'admin';
     }
     
-    // Verificar permisos (solo el propio gestor o un admin puede ver sus solicitudes)
     if (!userRole || (userRole !== 'admin' && userId !== managerId)) {
       return res.status(403).json({ 
         success: false, 
@@ -131,12 +126,10 @@ router.get('/manager/:managerId', authenticateToken, async (req, res) => {
   }
 });
 
-// Obtener una solicitud específica por ID
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Si no hay autenticación, verificar si es admin por headers
     let userId = null;
     let userRole = null;
     
@@ -174,7 +167,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
       });
     }
     
-    // Verificar permisos (solo el artista que la creó o el gestor del espacio pueden verla)
     if (
       !userRole || 
       (userRole !== 'admin' && 
@@ -200,10 +192,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Crear una nueva solicitud de evento
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    // Si no hay autenticación, verificar si es admin por headers
     let userId = null;
     let userRole = null;
     
@@ -213,13 +203,11 @@ router.post('/', authenticateToken, async (req, res) => {
     } else if (req.headers['x-user-role'] === 'admin' && req.headers['x-user-email'] === 'admin@eventsbga.com') {
       userRole = 'admin';
     } else if (req.headers['x-user-role'] === 'artist' && req.headers['x-user-id']) {
-      // Permitir solicitudes con headers personalizados para solucionar problemas de autenticación
       userId = req.headers['x-user-id'];
       userRole = 'artist';
       console.log('Usando headers personalizados para autenticación:', { userId, userRole });
     }
     
-    // Validar que el usuario esté autenticado y sea un artista o admin
     if (!userRole || (userRole !== 'artist' && userRole !== 'admin')) {
       return res.status(403).json({ 
         success: false, 
@@ -243,7 +231,6 @@ router.post('/', authenticateToken, async (req, res) => {
       requerimientosAdicionales 
     } = req.body;
     
-    // Validar que el usuario tenga un ID válido si no es admin
     if (userRole !== 'admin' && !userId) {
       return res.status(403).json({ 
         success: false, 
@@ -251,7 +238,7 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
     
-    // Crear la solicitud
+    
     const eventRequest = await EventRequest.create({
       artistId: artistId || userId,
       managerId,
@@ -284,12 +271,10 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Actualizar el estado de una solicitud (aprobar/rechazar)
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Si no hay autenticación, verificar si es admin por headers
     let userId = null;
     let userRole = null;
     
@@ -311,7 +296,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
     
-    // Verificar permisos (solo el gestor del espacio puede actualizar el estado)
     if (!userRole || (userRole !== 'admin' && (!userId || userId !== eventRequest.managerId))) {
       return res.status(403).json({ 
         success: false, 
@@ -319,10 +303,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
     
-    // Actualizar el estado
     eventRequest.estado = estado;
     
-    // Si se rechaza, guardar el motivo
     if (estado === 'rechazado' && rejectionReason) {
       eventRequest.rejectionReason = rejectionReason;
     }
@@ -344,12 +326,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Eliminar una solicitud
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Si no hay autenticación, verificar si es admin por headers
     let userId = null;
     let userRole = null;
     
@@ -369,7 +349,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       });
     }
     
-    // Verificar permisos (solo el artista que la creó puede eliminarla si está pendiente)
     if (
       !userRole ||
       (userRole !== 'admin' && 
@@ -397,12 +376,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Aprobar una solicitud de evento
 router.post('/:id/approve', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Si no hay autenticación, verificar si es admin por headers
     let userId = null;
     let userRole = null;
     
@@ -422,7 +399,6 @@ router.post('/:id/approve', authenticateToken, async (req, res) => {
       });
     }
     
-    // Verificar permisos (solo el gestor del espacio puede aprobar)
     if (!userRole || (userRole !== 'admin' && (!userId || userId !== eventRequest.managerId))) {
       return res.status(403).json({ 
         success: false, 
@@ -430,7 +406,6 @@ router.post('/:id/approve', authenticateToken, async (req, res) => {
       });
     }
     
-    // Actualizar el estado
     eventRequest.estado = 'aprobado';
     await eventRequest.save();
     
@@ -449,12 +424,10 @@ router.post('/:id/approve', authenticateToken, async (req, res) => {
   }
 });
 
-// Rechazar una solicitud de evento
 router.post('/:id/reject', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Si no hay autenticación, verificar si es admin por headers
     let userId = null;
     let userRole = null;
     
@@ -483,7 +456,6 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
       });
     }
     
-    // Verificar permisos (solo el gestor del espacio puede rechazar)
     if (!userRole || (userRole !== 'admin' && (!userId || userId !== eventRequest.managerId))) {
       return res.status(403).json({ 
         success: false, 
@@ -491,7 +463,6 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
       });
     }
     
-    // Actualizar el estado y el motivo de rechazo
     eventRequest.estado = 'rechazado';
     eventRequest.rejectionReason = rejectionReason;
     await eventRequest.save();
@@ -511,7 +482,6 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
   }
 });
 
-// Obtener información de un artista por su userId (sin autenticación)
 router.get('/artist-info/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -523,7 +493,6 @@ router.get('/artist-info/:userId', async (req, res) => {
       });
     }
     
-    // Consulta SQL directa para obtener la información del artista
     const [artists] = await sequelize.query(
       `SELECT * FROM "Artists" WHERE "userId" = :userId`,
       {
@@ -555,16 +524,13 @@ router.get('/artist-info/:userId', async (req, res) => {
   }
 });
 
-// Endpoints alternativos sin token (para clientes móviles)
 router.post('/artist-submit', eventRequestController.createEventRequestWithoutToken);
 router.get('/artist-requests/:artistId', eventRequestController.getArtistRequestsWithoutToken);
 
-// Endpoint para obtener solicitudes de un gestor sin token
 router.get('/manager-requests/:managerId', async (req, res) => {
   try {
     const { managerId } = req.params;
     
-    // Verificar que se proporcionó un ID de gestor
     if (!managerId) {
       return res.status(400).json({
         success: false,
@@ -574,7 +540,6 @@ router.get('/manager-requests/:managerId', async (req, res) => {
     
     console.log(`Buscando solicitudes para el gestor: ${managerId}`);
     
-    // Verificar que el ID del gestor coincida con el ID en los headers
     const headerUserId = req.headers['x-user-id'];
     if (headerUserId !== managerId) {
       return res.status(403).json({
@@ -583,7 +548,6 @@ router.get('/manager-requests/:managerId', async (req, res) => {
       });
     }
     
-    // Buscar las solicitudes del gestor usando Sequelize (sin incluir modelos adicionales)
     const requests = await EventRequest.findAll({
       where: { managerId },
       order: [['createdAt', 'DESC']]
@@ -591,7 +555,6 @@ router.get('/manager-requests/:managerId', async (req, res) => {
     
     console.log(`Encontradas ${requests.length} solicitudes para el gestor ${managerId}`);
     
-    // Si no hay solicitudes, devolver un array vacío
     if (!requests || requests.length === 0) {
       return res.status(200).json({
         success: true,
@@ -600,9 +563,7 @@ router.get('/manager-requests/:managerId', async (req, res) => {
       });
     }
     
-    // Transformar las solicitudes al formato esperado por el frontend
     const transformedRequests = requests.map(request => {
-      // Intentar extraer metadatos si existen
       let metadatos = {};
       try {
         if (request.metadatos) {
@@ -633,10 +594,8 @@ router.get('/manager-requests/:managerId', async (req, res) => {
         rejectionReason: request.rejectionReason || '',
         createdAt: request.createdAt || new Date(),
         updatedAt: request.updatedAt || new Date(),
-        // Priorizar el nombre del espacio de los metadatos
         spaceName: metadatos.spaceName || 'Espacio Cultural',
         spaceAddress: metadatos.spaceAddress || '',
-        // Incluir los metadatos originales para que el frontend pueda procesarlos si es necesario
         metadatos: request.metadatos || ''
       };
     });
@@ -657,14 +616,13 @@ router.get('/manager-requests/:managerId', async (req, res) => {
   }
 });
 
-// Bloquear un slot de horario cuando se aprueba una solicitud (sin requerir autenticación)
 router.post('/block-slot', async (req, res) => {
   try {
     const { spaceId, day, hour, isRecurring, dayName, eventId } = req.body;
     
     console.log('Datos recibidos para bloquear slot:', { spaceId, day, hour, isRecurring, dayName, eventId });
     
-    // Validar datos mínimos necesarios
+  
     if (!spaceId || hour === undefined) {
       return res.status(400).json({ 
         success: false, 
@@ -672,37 +630,29 @@ router.post('/block-slot', async (req, res) => {
       });
     }
     
-    // Procesar el día de la semana (0-6) si es una fecha
-    let dayOfWeek = 0; // Valor predeterminado: domingo
+    let dayOfWeek = 0; 
     let dateValue = null;
     let dayNameValue = '';
     
-    // Mapeo de días de la semana en español
     const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     
     try {
       if (day && typeof day === 'string' && day.includes('-')) {
-        // Es una fecha en formato YYYY-MM-DD
-        // Crear la fecha correctamente ajustando la zona horaria
         const [year, month, dayOfMonth] = day.split('-').map(num => parseInt(num, 10));
         
-        // Crear la fecha con año, mes (0-11) y día
         const eventDate = new Date(year, month - 1, dayOfMonth);
         
         if (!isNaN(eventDate.getTime())) {
-          // Obtener el día de la semana (0-6)
           dayOfWeek = eventDate.getDay();
-          dateValue = day; // Guardar la fecha en formato YYYY-MM-DD
-          dayNameValue = dayNames[dayOfWeek]; // Nombre del día en español
+          dateValue = day; 
+          dayNameValue = dayNames[dayOfWeek]; 
           
           console.log(`Fecha ${day} (${year}-${month}-${dayOfMonth}) es un ${dayNameValue}, día de semana: ${dayOfWeek}`);
           
-          // Verificación adicional para asegurarnos de que el cálculo es correcto
           const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
           console.log(`Verificación: ${eventDate.toISOString().split('T')[0]} es un ${diasSemana[eventDate.getDay()]}`);
         }
       } else if (day !== undefined) {
-        // Intentar convertir a número
         const numDay = parseInt(day, 10);
         if (!isNaN(numDay) && numDay >= 0 && numDay <= 6) {
           dayOfWeek = numDay;
@@ -711,50 +661,39 @@ router.post('/block-slot', async (req, res) => {
       }
     } catch (error) {
       console.error('Error al procesar la fecha/día:', error);
-      // Continuar con el valor predeterminado
     }
     
-    // Crear el registro de bloqueo usando el modelo directamente
     const BlockedSlot = require('../models/BlockedSlot');
     const { Manager } = require('../models/Manager');
     
-    // Verificar si el spaceId es un ID de autenticación (idauth) o un ID interno
-    // Si es un ID de autenticación, lo usamos directamente para mantener consistencia con registros existentes
     let managerId = spaceId;
     
-    // Si el ID no parece ser un ID de autenticación (no contiene | o tiene formato UUID), intentar buscar el ID de autenticación
     if (spaceId && !spaceId.includes('|') && spaceId.includes('-')) {
       try {
-        // Buscar el manager por su ID interno para obtener su ID de autenticación
         const manager = await Manager.findByPk(spaceId);
         if (manager && manager.userId) {
-          managerId = manager.userId; // Usar el ID de autenticación (idauth)
+          managerId = manager.userId; 
           console.log(`Usando ID de autenticación del gestor: ${managerId} en lugar de ID interno: ${spaceId}`);
         }
       } catch (error) {
         console.error('Error al buscar ID de autenticación del gestor:', error);
-        // Continuar con el ID original
       }
     }
     
-    // Crear un objeto con solo los campos necesarios
     const slotData = {
-      managerId: managerId, // Usar el ID de autenticación (idauth) para mantener consistencia
+      managerId: managerId, 
       hour: hour,
-      day: dayOfWeek, // Día de la semana (0-6) calculado a partir de la fecha
+      day: dayOfWeek, 
       isRecurring: isRecurring || false,
-      // Usar siempre el nombre del día de la semana correspondiente a la fecha
       dayName: dayNameValue || (isRecurring ? dayNames[dayOfWeek] : 'Día no especificado')
     };
     
-    // Añadir la fecha solo si está disponible y no es recurrente
     if (dateValue && !isRecurring) {
       slotData.date = dateValue;
     }
     
     console.log('Creando bloqueo con datos:', slotData);
     
-    // Crear el registro
     const blockedSlot = await BlockedSlot.create(slotData);
     
     console.log('Slot bloqueado exitosamente:', blockedSlot.id);
@@ -780,12 +719,10 @@ router.post('/block-slot', async (req, res) => {
   }
 });
 
-// Aprobar una solicitud de evento (sin autenticación)
 router.post('/approve-request/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Buscar la solicitud
     const eventRequest = await EventRequest.findByPk(id);
     
     if (!eventRequest) {
@@ -795,7 +732,6 @@ router.post('/approve-request/:id', async (req, res) => {
       });
     }
     
-    // Actualizar el estado a aprobado
     eventRequest.estado = 'aprobado';
     await eventRequest.save();
     
@@ -816,13 +752,11 @@ router.post('/approve-request/:id', async (req, res) => {
   }
 });
 
-// Rechazar una solicitud de evento (con autenticación)
 router.post('/:id/reject', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { rejectionReason } = req.body;
     
-    // Verificar que haya un motivo de rechazo
     if (!rejectionReason) {
       return res.status(400).json({
         success: false,
@@ -830,7 +764,7 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
       });
     }
     
-    // Buscar la solicitud
+  
     const eventRequest = await EventRequest.findByPk(id);
     
     if (!eventRequest) {
@@ -840,7 +774,6 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
       });
     }
     
-    // Actualizar el estado a rechazado
     eventRequest.estado = 'rechazado';
     eventRequest.rejectionReason = rejectionReason;
     await eventRequest.save();
@@ -862,13 +795,11 @@ router.post('/:id/reject', authenticateToken, async (req, res) => {
   }
 });
 
-// Rechazar una solicitud de evento (sin autenticación)
 router.post('/reject-request/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { rejectionReason, managerId, managerEmail } = req.body;
     
-    // Verificar que haya un motivo de rechazo
     if (!rejectionReason) {
       return res.status(400).json({
         success: false,
@@ -876,13 +807,12 @@ router.post('/reject-request/:id', async (req, res) => {
       });
     }
     
-    // Obtener información del gestor desde los headers si están disponibles
     const userId = req.headers['x-user-id'] || managerId;
     const userEmail = req.headers['x-user-email'] || managerEmail;
     
     console.log(`Intento de rechazo para solicitud ${id} por gestor ${userId} (${userEmail})`);
     
-    // Buscar la solicitud
+  
     const eventRequest = await EventRequest.findByPk(id);
     
     if (!eventRequest) {
@@ -892,15 +822,12 @@ router.post('/reject-request/:id', async (req, res) => {
       });
     }
     
-    // Actualizar el estado a rechazado
     eventRequest.estado = 'rechazado';
     eventRequest.rejectionReason = rejectionReason;
     
-    // Guardar información adicional en los metadatos
     try {
       let metadatos = {};
       
-      // Intentar parsear los metadatos existentes si los hay
       if (eventRequest.metadatos) {
         if (typeof eventRequest.metadatos === 'string') {
           metadatos = JSON.parse(eventRequest.metadatos);
@@ -909,18 +836,15 @@ router.post('/reject-request/:id', async (req, res) => {
         }
       }
       
-      // Añadir información sobre el rechazo
       metadatos.rejectionInfo = {
         rejectedAt: new Date().toISOString(),
         rejectedBy: userId || 'unknown',
         rejectedByEmail: userEmail || 'unknown'
       };
       
-      // Guardar los metadatos actualizados
       eventRequest.metadatos = JSON.stringify(metadatos);
     } catch (metaError) {
       console.error('Error al actualizar metadatos:', metaError);
-      // Continuar con el proceso aunque haya error en los metadatos
     }
     
     await eventRequest.save();
@@ -946,19 +870,15 @@ router.post('/reject-request/:id', async (req, res) => {
   }
 });
 
-// Obtener solicitudes de eventos aprobadas
 router.get('/approved', async (req, res) => {
   try {
-    // Buscar todas las solicitudes con estado 'aprobado'
     const eventRequests = await EventRequest.findAll({
       where: {
         estado: 'aprobado'
       },
-      // No incluir asociaciones para evitar el error
       order: [['createdAt', 'DESC']]
     });
     
-    // Transformar los datos para que sean compatibles con el frontend
     const transformedRequests = eventRequests.map(request => {
       return {
         id: request.id,

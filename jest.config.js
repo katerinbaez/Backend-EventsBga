@@ -1,3 +1,6 @@
+// Configuración de Jest
+// Configura pruebas y cobertura de código para el backend
+
 module.exports = {
   testEnvironment: 'node',
   testMatch: [
@@ -13,13 +16,11 @@ module.exports = {
     '!**/node_modules/**',
     '!**/coverage/**'
   ],
-  // Configuraciones para manejar operaciones asíncronas
-  forceExit: true, // Forzar a Jest a salir después de todas las pruebas
-  testTimeout: 10000, // Aumentar el tiempo de espera para las pruebas
-  detectOpenHandles: true, // Detectar conexiones abiertas
-  setupFilesAfterEnv: ['./jest.setup.js'], // Archivo de configuración para Jest
-  verbose: true, // Mostrar resultados detallados
-  // Configuraciones para mostrar la cobertura de código
+  forceExit: true,
+  testTimeout: 10000,
+  detectOpenHandles: true,
+  setupFilesAfterEnv: ['./jest.setup.js'],
+  verbose: true,
   coverageReporters: ['text', 'text-summary', 'lcov'],
   coverageThreshold: {
     global: {

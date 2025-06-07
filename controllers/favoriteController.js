@@ -1,9 +1,11 @@
+// Controlador de favoritos
+// Gestiona operaciones CRUD y verificación de favoritos
+
 const Favorite = require('../models/Favorite');
 const Event = require('../models/Event');
 const Artist = require('../models/Artist');
 const CulturalSpace = require('../models/CulturalSpace');
 
-// Verificar si un elemento es favorito
 exports.checkFavorite = async (req, res) => {
   try {
     const { userId, eventId } = req.query;
@@ -18,21 +20,18 @@ exports.checkFavorite = async (req, res) => {
 
     console.log(`Verificando favorito para usuario ${userId} y evento ${eventId}`);
 
-    // Convertir el ID a string para asegurar compatibilidad
     const targetIdStr = String(eventId);
     console.log(`Verificando favorito con targetId: ${eventId}, convertido a string: ${targetIdStr}`);
 
-    // Convertir UUID a un número entero si es necesario
     let numericId = targetIdStr;
     if (isNaN(parseInt(targetIdStr))) {
-      // Si es un UUID, crear un hash numérico
       const hashCode = str => {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
           hash = ((hash << 5) - hash) + str.charCodeAt(i);
-          hash = hash & hash; // Convert to 32bit integer
+          hash = hash & hash;
         }
-        return Math.abs(hash % 1000000); // Limitar a un número razonable
+        return Math.abs(hash % 1000000); 
       };
       numericId = hashCode(targetIdStr);
       console.log(`Convertido UUID ${eventId} a ID numérico ${numericId}`);
@@ -40,7 +39,6 @@ exports.checkFavorite = async (req, res) => {
       numericId = parseInt(targetIdStr);
     }
 
-    // Buscar en la tabla de favoritos con el ID numérico
     const favorite = await Favorite.findOne({
       where: {
         userId,
@@ -56,7 +54,6 @@ exports.checkFavorite = async (req, res) => {
       });
     }
 
-    // Si no se encuentra, intentar buscar solo por userId y targetId
     const simpleFavorite = await Favorite.findOne({
       where: {
         userId,
@@ -78,10 +75,9 @@ exports.checkFavorite = async (req, res) => {
   }
 };
 
-// Obtener favoritos del usuario
+
 exports.getUserFavorites = async (req, res) => {
   try {
-    // Obtener userId de los parámetros de consulta en lugar de req.user
     const { userId, targetType } = req.query;
     
     if (!userId) {
@@ -93,10 +89,8 @@ exports.getUserFavorites = async (req, res) => {
     
     console.log('Obteniendo favoritos para el usuario:', userId);
     
-    // Construir la consulta base
     const whereClause = { userId };
     
-    // Si se especifica un tipo de objetivo, filtrar por él
     if (targetType) {
       whereClause.targetType = targetType;
     }
@@ -108,7 +102,6 @@ exports.getUserFavorites = async (req, res) => {
 
     console.log(`Se encontraron ${favorites.length} favoritos`);
 
-    // Obtener detalles adicionales para cada favorito
     const enrichedFavorites = await Promise.all(favorites.map(async (fav) => {
       let details = null;
       const favoriteData = {
@@ -125,18 +118,14 @@ exports.getUserFavorites = async (req, res) => {
             details = await Event.findByPk(fav.targetId);
             break;
           case 'artist':
-            // Para artistas, necesitamos buscar por el targetId que puede ser un string
-            // Intentar buscar por ID exacto primero
             details = await Artist.findOne({
               where: { id: fav.targetId }
             });
             
-            // Si no se encuentra, buscar todos los artistas y comparar IDs
             if (!details) {
               console.log(`No se encontró artista con ID exacto ${fav.targetId}, buscando alternativas...`);
               const allArtists = await Artist.findAll();
               
-              // Buscar un artista cuyo ID coincida con el targetId (como string)
               for (const artist of allArtists) {
                 if (artist.id.toString() === fav.targetId.toString()) {
                   details = artist;
@@ -179,7 +168,6 @@ exports.getUserFavorites = async (req, res) => {
   }
 };
 
-// Agregar a favoritos
 exports.addToFavorites = async (req, res) => {
   try {
     const { userId, targetType, targetId } = req.body;
@@ -195,11 +183,9 @@ exports.addToFavorites = async (req, res) => {
       return res.status(400).json({ message: 'Tipo de objetivo inválido' });
     }
 
-    // Convertir targetId a string para asegurar compatibilidad
     const targetIdStr = String(targetId);
     console.log(`Procesando targetId: ${targetId}, convertido a string: ${targetIdStr}`);
 
-    // Verificar si ya existe
     const existing = await Favorite.findOne({
       where: {
         userId,
@@ -212,7 +198,6 @@ exports.addToFavorites = async (req, res) => {
       return res.status(400).json({ message: 'Ya está en favoritos' });
     }
 
-    // Crear nuevo favorito
     const favorite = await Favorite.create({
       userId,
       targetType,
@@ -226,7 +211,6 @@ exports.addToFavorites = async (req, res) => {
   }
 };
 
-// Eliminar de favoritos
 exports.removeFromFavorites = async (req, res) => {
   try {
     const { userId, targetType, targetId } = req.body;
@@ -238,7 +222,6 @@ exports.removeFromFavorites = async (req, res) => {
       });
     }
 
-    // Convertir targetId a string para asegurar compatibilidad
     const targetIdStr = String(targetId);
     console.log(`Eliminando favorito con targetId: ${targetId}, convertido a string: ${targetIdStr}`);
 

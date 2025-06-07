@@ -1,6 +1,8 @@
+// Controlador de notificaciones
+// Maneja la creación y gestión de notificaciones del sistema
+
 const { Notification } = require('../models/Notification');
 
-// Crear una nueva notificación
 exports.createNotification = async (req, res) => {
     try {
         console.log('\n Creando nueva notificación');
@@ -8,7 +10,6 @@ exports.createNotification = async (req, res) => {
         
         const { userId, type, mensaje, dismissable } = req.body;
 
-        // Validación de campos requeridos
         if (!userId) {
             console.error(' Error: userId es requerido');
             return res.status(400).json({ 
@@ -30,7 +31,6 @@ exports.createNotification = async (req, res) => {
             });
         }
 
-        // Creamos la notificación
         const notificationData = {
             userId,
             type,
@@ -73,7 +73,6 @@ exports.createNotification = async (req, res) => {
     }
 };
 
-// Obtener notificaciones de un usuario
 exports.getUserNotifications = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -83,11 +82,9 @@ exports.getUserNotifications = async (req, res) => {
             order: [['createdAt', 'DESC']]
         });
 
-        // Asegurarnos de que los datos JSON se procesen correctamente
         const processedNotifications = notifications.map(notification => {
             const notificationData = notification.toJSON();
             
-            // Asegurarnos de que el campo data sea un objeto
             if (typeof notificationData.data === 'string') {
                 try {
                     notificationData.data = JSON.parse(notificationData.data);
@@ -114,7 +111,6 @@ exports.getUserNotifications = async (req, res) => {
     }
 };
 
-// Eliminar una notificación
 exports.deleteNotification = async (req, res) => {
     try {
         const { id } = req.params;
@@ -134,7 +130,6 @@ exports.deleteNotification = async (req, res) => {
     }
 };
 
-// Marcar notificación como leída
 exports.markAsRead = async (req, res) => {
     try {
         const { id } = req.params;

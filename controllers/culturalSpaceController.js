@@ -1,3 +1,6 @@
+// Controlador para espacios culturales
+// Gestiona operaciones CRUD y disponibilidad de espacios
+
 const CulturalSpace = require('../models/CulturalSpace');
 const { User } = require('../models/User');
 const SpaceAvailability = require('../models/SpaceAvailability');
@@ -5,7 +8,6 @@ const BlockedSlot = require('../models/BlockedSlot');
 const { Manager } = require('../models/Manager');
 const { Op } = require('sequelize');
 
-// Obtener todos los espacios culturales
 exports.getAllSpaces = async (req, res) => {
   try {
     const spaces = await CulturalSpace.findAll();
@@ -24,7 +26,6 @@ exports.getAllSpaces = async (req, res) => {
   }
 };
 
-// Obtener un espacio cultural por ID
 exports.getSpaceById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -52,21 +53,16 @@ exports.getSpaceById = async (req, res) => {
   }
 };
 
-// Crear un nuevo espacio cultural
 exports.createSpace = async (req, res) => {
   try {
-    // Intentar obtener el managerId de los parámetros de la URL o del cuerpo de la solicitud
     let managerId = req.params.managerId;
     
-    // Si no está en los parámetros, intentar obtenerlo del cuerpo
     if (!managerId && req.body && req.body.managerId) {
       managerId = req.body.managerId;
     }
     
-    // Decodificar el ID si viene codificado
     const decodedManagerId = managerId ? decodeURIComponent(managerId) : null;
     
-    // Extraer datos del cuerpo de la solicitud
     const { 
       nombre, 
       direccion, 
@@ -81,7 +77,6 @@ exports.createSpace = async (req, res) => {
       longitude
     } = req.body;
     
-    // Validar coordenadas si se proporcionan
     if (latitude !== undefined && (latitude < -90 || latitude > 90)) {
       return res.status(400).json({
         success: false,
@@ -96,7 +91,6 @@ exports.createSpace = async (req, res) => {
       });
     }
     
-    // Crear el espacio cultural con todos los campos
     const space = await CulturalSpace.create({ 
       managerId: decodedManagerId,
       nombre,
@@ -127,29 +121,23 @@ exports.createSpace = async (req, res) => {
   }
 };
 
-// Obtener disponibilidad de un espacio cultural
 exports.getSpaceAvailability = async (req, res) => {
   try {
     const { managerId } = req.params;
     const { date } = req.query;
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
     console.log(`Obteniendo disponibilidad para manager: ${decodedManagerId}${date ? `, fecha: ${date}` : ', fecha: No especificada'}`);
     
-    // Si se especifica una fecha, buscar configuración para esa fecha
     let isSpecificDate = false;
     
-    // Buscar disponibilidad
     let availability = [];
     
     if (date) {
-      // Buscar por fecha específica
       isSpecificDate = true;
       console.log(`Buscando disponibilidad específica para fecha: ${date}`);
       
-      // Buscar con userId usando la columna date en lugar de dateStr
       const specificAvailability = await SpaceAvailability.findAll({
         where: {
           managerId: decodedManagerId,
@@ -165,13 +153,11 @@ exports.getSpaceAvailability = async (req, res) => {
       if (specificAvailability && specificAvailability.length > 0) {
         availability = specificAvailability;
       } else {
-        // Buscar el manager para obtener su ID interno
         const manager = await Manager.findOne({ where: { userId: decodedManagerId } });
         
         if (manager) {
           console.log(`Manager encontrado, buscando con ID: ${manager.id}`);
           
-          // Buscar con el ID del manager
           const specificAvailabilityByManagerId = await SpaceAvailability.findAll({
             where: {
               managerId: manager.id,
@@ -187,24 +173,21 @@ exports.getSpaceAvailability = async (req, res) => {
           if (specificAvailabilityByManagerId && specificAvailabilityByManagerId.length > 0) {
             availability = specificAvailabilityByManagerId;
           } else {
-            isSpecificDate = false; // No se encontró configuración específica
+            isSpecificDate = false; 
           }
         }
       }
       
-      // Si no se encontró disponibilidad específica, buscar configuración general
       if (availability.length === 0) {
         console.log(`No se encontró disponibilidad para la fecha ${date}, buscando configuración general`);
         isSpecificDate = false;
       }
     }
     
-    // Si no hay fecha específica o no se encontró configuración específica, buscar configuración general
     if (!isSpecificDate) {
       console.log('Buscando disponibilidad general (sin fecha específica)');
       
       try {
-        // Buscar con userId usando el campo date
         const generalAvailability = await SpaceAvailability.findAll({
           where: { 
             managerId: decodedManagerId,
@@ -218,13 +201,11 @@ exports.getSpaceAvailability = async (req, res) => {
         if (generalAvailability && generalAvailability.length > 0) {
           availability = generalAvailability;
         } else {
-          // Buscar el manager para obtener su ID interno
           const manager = await Manager.findOne({ where: { userId: decodedManagerId } });
           
           if (manager) {
             console.log(`Manager encontrado, buscando con ID: ${manager.id}`);
             
-            // Buscar con el ID del manager - solo por dateStr, evitando usar el campo date
             const generalAvailabilityByManagerId = await SpaceAvailability.findAll({
               where: { 
                 managerId: manager.id,
@@ -245,11 +226,9 @@ exports.getSpaceAvailability = async (req, res) => {
         }
       } catch (err) {
         console.error('Error al buscar disponibilidad general:', err);
-        // Continuar con el flujo normal incluso si hay error
       }
     }
     
-    // Si no hay configuración, retornar objeto vacío
     if (!availability || availability.length === 0) {
       console.log('No se encontró ninguna configuración de disponibilidad');
       return res.json({
@@ -262,10 +241,8 @@ exports.getSpaceAvailability = async (req, res) => {
       });
     }
     
-    // Formatear la disponibilidad para facilitar su uso en el frontend
     const formattedAvailability = {};
     availability.forEach(item => {
-      // Como estamos usando getters/setters en el modelo, esto ya es un array
       formattedAvailability[item.dayOfWeek] = item.hourSlots;
       console.log(`Día ${item.dayOfWeek}: ${item.hourSlots.length} horas disponibles, fecha: ${item.dateStr || 'general'}, managerId: ${item.managerId}`);
     });
@@ -290,18 +267,15 @@ exports.getSpaceAvailability = async (req, res) => {
   }
 };
 
-// Actualizar disponibilidad de un espacio cultural
 exports.updateSpaceAvailability = async (req, res) => {
   try {
     const { managerId } = req.params;
     const { availability, date } = req.body;
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
     console.log(`Actualizando disponibilidad para manager: ${decodedManagerId}, fecha: ${date || 'No especificada'}`);
     
-    // Validar datos recibidos
     if (!availability || typeof availability !== 'object') {
       return res.status(400).json({
         success: false,
@@ -309,29 +283,25 @@ exports.updateSpaceAvailability = async (req, res) => {
       });
     }
     
-    // Si se proporciona una fecha específica, SOLO eliminar las configuraciones para esa fecha
-    // NUNCA modificar la configuración general cuando se actualiza una fecha específica
     if (date) {
       console.log(`Eliminando configuraciones existentes SOLO para la fecha específica: ${date}`);
       await SpaceAvailability.destroy({
         where: { 
           managerId: decodedManagerId,
-          date: date  // Usar 'date' en lugar de 'dateStr'
+          date: date  
         }
       });
     } else {
-      // Si estamos actualizando la configuración general, SOLO eliminar configuraciones generales
-      // NUNCA modificar configuraciones específicas por fecha cuando se actualiza la general
       console.log('Eliminando configuraciones generales existentes (sin fecha específica)');
       await SpaceAvailability.destroy({
         where: { 
           managerId: decodedManagerId,
-          date: null  // Solo eliminar registros donde date es NULL
+          date: null  
         }
       });
     }
     
-    // Crear nuevos registros por cada día con su configuración
+
     const createdRecords = [];
     
     for (const day in availability) {
@@ -339,28 +309,19 @@ exports.updateSpaceAvailability = async (req, res) => {
         const hours = availability[day];
         
         if (Array.isArray(hours)) {
-          // Preparar datos para crear el registro
           const recordData = {
             managerId: decodedManagerId,
             dayOfWeek: parseInt(day),
-            hourSlots: hours // Este es el getter/setter definido en el modelo
+            hourSlots: hours 
           };
           
-          // Si hay fecha específica, agregarla al registro
           if (date) {
-            // Asegurarnos de que la fecha se guarde exactamente como viene, sin ajustes de zona horaria
-            // Ya no usamos dateStr, solo date
             
-            // Para el campo date, crear un objeto Date pero mantener la fecha exacta
-            // Formato esperado: YYYY-MM-DD
             const [year, month, day] = date.split('-').map(num => parseInt(num, 10));
             
-            // Crear fecha con la zona horaria local para evitar el desplazamiento de un día
-            // Nota: NO usar new Date(Date.UTC(...)) ya que eso causa el problema de desplazamiento
             const dateObj = new Date(year, month - 1, day);
             
-            // Forzar la fecha para que sea exactamente la especificada
-            dateObj.setHours(12, 0, 0, 0); // Establecer al mediodía para evitar problemas de zona horaria
+            dateObj.setHours(12, 0, 0, 0); 
             
             recordData.date = dateObj;
             
@@ -391,17 +352,14 @@ exports.updateSpaceAvailability = async (req, res) => {
   }
 };
 
-// Obtener slots bloqueados de un espacio cultural
 exports.getBlockedSlots = async (req, res) => {
   try {
     const { managerId } = req.params;
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
     console.log(`Buscando slots bloqueados para manager: ${decodedManagerId}`);
     
-    // Buscar los slots bloqueados directamente por managerId
     const blockedSlots = await BlockedSlot.findAll({
       where: { 
         managerId: decodedManagerId
@@ -410,17 +368,14 @@ exports.getBlockedSlots = async (req, res) => {
     
     console.log(`Encontrados ${blockedSlots.length} slots bloqueados`);
     
-    // Formatear los resultados para el frontend
     const formattedSlots = blockedSlots.map(slot => {
-      // Determinar qué campo de fecha usar (dateStr o date)
       const dateValue = slot.dateStr || slot.date;
       
-      // Calcular el día de la semana a partir de la fecha
       let dayOfWeek = 0;
       try {
         if (dateValue) {
           const dateObj = new Date(dateValue);
-          dayOfWeek = dateObj.getDay(); // 0: domingo, 1: lunes, etc.
+          dayOfWeek = dateObj.getDay(); 
         }
       } catch (error) {
         console.warn(`Error al procesar fecha para slot ${slot.id}:`, error.message);
@@ -450,13 +405,11 @@ exports.getBlockedSlots = async (req, res) => {
   }
 };
 
-// Bloquear slot en un espacio cultural
 exports.blockSlot = async (req, res) => {
   try {
     const { managerId } = req.params;
     const { date, hour, dateStr, isRecurring = false } = req.body;
     
-    // Validar datos recibidos
     if ((!date && !dateStr) || hour === undefined) {
       return res.status(400).json({
         success: false,
@@ -464,30 +417,23 @@ exports.blockSlot = async (req, res) => {
       });
     }
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
-    // Usar la fecha que esté disponible
     const finalDate = dateStr || date;
     
-    // Calcular el día de la semana a partir de la fecha
     const dateObj = new Date(finalDate);
-    const dayOfWeek = dateObj.getDay(); // 0: domingo, 1: lunes, etc.
-    
-    // Preparar datos para la creación y búsqueda
+    const dayOfWeek = dateObj.getDay(); 
     const slotData = {
       managerId: decodedManagerId,
       hour: parseInt(hour),
       isRecurring: Boolean(isRecurring)
     };
     
-    // Usar ambos campos de fecha para mayor compatibilidad
     if (dateStr) {
       slotData.dateStr = dateStr;
     }
     if (date) {
       slotData.date = date;
-      // Si solo tenemos date, usarlo también como dateStr
       if (!dateStr) {
         slotData.dateStr = date;
       }
@@ -495,7 +441,6 @@ exports.blockSlot = async (req, res) => {
     
     console.log('Intentando bloquear slot con datos:', slotData);
     
-    // Preparar condiciones de búsqueda para verificar si ya existe
     const whereCondition = {
       managerId: decodedManagerId,
       hour: parseInt(hour)
@@ -507,7 +452,6 @@ exports.blockSlot = async (req, res) => {
       whereCondition.dateStr = date;
     }
     
-    // Verificar si ya existe un slot bloqueado con estos datos
     const existingSlot = await BlockedSlot.findOne({
       where: whereCondition
     });
@@ -527,7 +471,6 @@ exports.blockSlot = async (req, res) => {
       });
     }
     
-    // Crear nuevo slot bloqueado
     const blockedSlot = await BlockedSlot.create(slotData);
     
     res.status(201).json({
@@ -552,13 +495,11 @@ exports.blockSlot = async (req, res) => {
   }
 };
 
-// Desbloquear slot en un espacio cultural
 exports.unblockSlot = async (req, res) => {
   try {
     const { managerId } = req.params;
     const { date, hour, dateStr } = req.body;
     
-    // Validar datos recibidos
     if ((!date && !dateStr) || hour === undefined) {
       return res.status(400).json({
         success: false,
@@ -566,22 +507,18 @@ exports.unblockSlot = async (req, res) => {
       });
     }
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
-    // Preparar condiciones de búsqueda para mayor compatibilidad
     const whereCondition = {
       managerId: decodedManagerId,
       hour: parseInt(hour)
     };
     
-    // Usar ambos campos de fecha para mayor compatibilidad
     if (dateStr) {
       whereCondition.dateStr = dateStr;
     }
     if (date) {
       whereCondition.date = date;
-      // Si solo tenemos date, usarlo también como dateStr
       if (!dateStr) {
         whereCondition.dateStr = date;
       }
@@ -589,7 +526,6 @@ exports.unblockSlot = async (req, res) => {
     
     console.log('Intentando desbloquear slot con condiciones:', whereCondition);
     
-    // Buscar y eliminar el slot bloqueado
     const deletedCount = await BlockedSlot.destroy({
       where: whereCondition
     });
@@ -615,15 +551,12 @@ exports.unblockSlot = async (req, res) => {
   }
 };
 
-// Obtener espacio cultural por ID de manager
 exports.getSpaceByManagerId = async (req, res) => {
   try {
     const { managerId } = req.params;
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
-    // Buscar el espacio cultural por ID de manager
     const space = await CulturalSpace.findOne({
       where: { managerId: decodedManagerId }
     });
@@ -649,7 +582,6 @@ exports.getSpaceByManagerId = async (req, res) => {
   }
 };
 
-// Actualizar un espacio cultural
 exports.updateSpace = async (req, res) => {
   try {
     const { id } = req.params;
@@ -668,7 +600,6 @@ exports.updateSpace = async (req, res) => {
       longitude
     } = req.body;
     
-    // Validar coordenadas si se proporcionan
     if (latitude !== undefined && (latitude < -90 || latitude > 90)) {
       return res.status(400).json({
         success: false,
@@ -683,7 +614,6 @@ exports.updateSpace = async (req, res) => {
       });
     }
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = managerId ? decodeURIComponent(managerId) : null;
     
     const space = await CulturalSpace.findByPk(id);
@@ -695,7 +625,6 @@ exports.updateSpace = async (req, res) => {
       });
     }
     
-    // Actualizar solo los campos proporcionados
     const updateData = {};
     if (decodedManagerId) updateData.managerId = decodedManagerId;
     if (nombre !== undefined) updateData.nombre = nombre;
@@ -727,7 +656,6 @@ exports.updateSpace = async (req, res) => {
   }
 };
 
-// Actualizar la URL de una imagen de un espacio cultural
 exports.updateImageUrl = async (req, res) => {
   try {
     const { spaceId } = req.params;
@@ -749,29 +677,22 @@ exports.updateImageUrl = async (req, res) => {
       });
     }
     
-    // Obtener las imágenes actuales
     let images = space.images || [];
     
-    // Si es un array, actualizar la imagen en el índice especificado
     if (Array.isArray(images)) {
       if (index !== undefined && index >= 0) {
-        // Si el índice existe, actualizar esa posición
         if (index < images.length) {
           images[index] = imageUrl;
         } else {
-          // Si el índice no existe, añadir la imagen al final
           images.push(imageUrl);
         }
       } else {
-        // Si no se especifica índice, añadir al final
         images.push(imageUrl);
       }
     } else {
-      // Si no es un array, crear uno nuevo con la imagen
       images = [imageUrl];
     }
     
-    // Actualizar el espacio cultural
     await space.update({ images });
     
     res.json({
@@ -790,7 +711,6 @@ exports.updateImageUrl = async (req, res) => {
   }
 };
 
-// Eliminar un espacio cultural
 exports.deleteSpace = async (req, res) => {
   try {
     const { id } = req.params;
@@ -820,12 +740,10 @@ exports.deleteSpace = async (req, res) => {
   }
 };
 
-// Obtener espacios de un gestor específico
 exports.getSpacesByManager = async (req, res) => {
   try {
     const { managerId } = req.params;
     
-    // Decodificar el ID si viene codificado en la URL
     const decodedManagerId = decodeURIComponent(managerId);
     
     const spaces = await CulturalSpace.findAll({

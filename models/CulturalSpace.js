@@ -8,7 +8,7 @@ const CulturalSpace = sequelize.define('CulturalSpace', {
     autoIncrement: true
   },
   managerId: {
-    type: DataTypes.STRING, // Asegúrate que coincide con el tipo de id del modelo User
+    type: DataTypes.STRING, 
     allowNull: false,
     references: {
       model: 'Users',
@@ -39,10 +39,10 @@ const CulturalSpace = sequelize.define('CulturalSpace', {
     type: DataTypes.TEXT
   },
   instalaciones: {
-    type: DataTypes.ARRAY(DataTypes.STRING) // Solo funciona con PostgreSQL
+    type: DataTypes.ARRAY(DataTypes.STRING) 
   },
   disponibilidad: {
-    type: DataTypes.JSONB // Usamos JSONB para guardar un array de objetos con dayOfWeek, openTime y closeTime
+    type: DataTypes.JSONB 
   },
   
   images: {
@@ -79,7 +79,6 @@ const CulturalSpace = sequelize.define('CulturalSpace', {
   timestamps: true
 });
 
-// Establecer relaciones
 CulturalSpace.associate = (models) => {
   CulturalSpace.hasMany(models.Event, {
     foreignKey: 'spaceId',

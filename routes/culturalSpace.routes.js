@@ -1,8 +1,10 @@
+// Rutas para espacios culturales
+// Gestiona la gestión completa de espacios y su disponibilidad
+
 const express = require('express');
 const router = express.Router();
 const culturalSpaceController = require('../controllers/culturalSpaceController');
 
-// Rutas para espacios culturales
 router.get('/', culturalSpaceController.getAllSpaces);
 router.get('/:id', culturalSpaceController.getSpaceById);
 router.post('/', culturalSpaceController.createSpace);
@@ -10,7 +12,6 @@ router.put('/:id', culturalSpaceController.updateSpace);
 router.delete('/:id', culturalSpaceController.deleteSpace);
 router.get('/manager/:managerId', culturalSpaceController.getSpacesByManager);
 
-// Rutas para gestión de disponibilidad y horarios
 router.get('/space/manager/:managerId', culturalSpaceController.getSpaceByManagerId);
 router.get('/availability/:managerId', culturalSpaceController.getSpaceAvailability);
 router.post('/availability/:managerId', culturalSpaceController.updateSpaceAvailability);

@@ -1,10 +1,12 @@
+// Controlador de gestores
+// Maneja registro y actualización de perfiles de gestores culturales
+
 const { Manager } = require('../models/Manager');
 
 exports.registerManager = async (req, res) => {
     try {
         const { userId } = req.body;
 
-        // Verificar si el gestor ya existe
         const existingManager = await Manager.findOne({ where: { userId } });
         if (existingManager) {
             return res.status(400).json({
@@ -13,7 +15,6 @@ exports.registerManager = async (req, res) => {
             });
         }
 
-        // Crear nuevo gestor
         const manager = await Manager.create(req.body);
 
         res.json({
@@ -69,12 +70,9 @@ exports.updateManagerProfile = async (req, res) => {
             });
         }
 
-        // Asegurarse de que los horarios se guarden correctamente
         const updateData = { ...req.body };
         
-        // Si se reciben horarios, asegurarse de que tengan el formato correcto
         if (updateData.horarios) {
-            // Convertir a JSON si viene como string
             if (typeof updateData.horarios === 'string') {
                 try {
                     updateData.horarios = JSON.parse(updateData.horarios);
@@ -83,7 +81,6 @@ exports.updateManagerProfile = async (req, res) => {
                 }
             }
             
-            // Asegurarse de que horarios sea un objeto con la estructura correcta
             if (typeof updateData.horarios !== 'object') {
                 updateData.horarios = {
                     lunes: '',
@@ -96,7 +93,6 @@ exports.updateManagerProfile = async (req, res) => {
                 };
             }
             
-            // Log para depuración
             console.log('Horarios a guardar:', JSON.stringify(updateData.horarios));
         }
 

@@ -79,7 +79,6 @@ const EventRequest = sequelize.define('EventRequest', {
   tableName: 'EventRequests'
 });
 
-// Definir las asociaciones
 EventRequest.associate = function(models) {
   EventRequest.belongsTo(models.User, {
     foreignKey: 'artistId',

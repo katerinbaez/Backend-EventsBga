@@ -27,16 +27,14 @@ const RoleRequest = sequelize.define('RoleRequest', {
       type: DataTypes.STRING,
       defaultValue: 'Pendiente'
     },
-    // Campos específicos para artistas
     trayectoriaArtistica: {
       type: DataTypes.TEXT,
       allowNull: true
     },
     portafolio: {
-      type: DataTypes.JSON, // Array de URLs
+      type: DataTypes.JSON, 
       defaultValue: []
     },
-    // Campos específicos para gestores
     experienciaGestion: {
       type: DataTypes.TEXT,
       allowNull: true
@@ -50,7 +48,7 @@ const RoleRequest = sequelize.define('RoleRequest', {
       allowNull: true
     },
     documentos: {
-      type: DataTypes.JSON, // Array de URLs de documentos
+      type: DataTypes.JSON, 
       defaultValue: []
     }
   }, {

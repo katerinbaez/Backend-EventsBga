@@ -6,7 +6,7 @@ const User = sequelize.define('User', {
     email: { type: DataTypes.STRING, unique: true, allowNull: false },
     name: { type: DataTypes.STRING, allowNull: true },
 }, {
-    timestamps: true,  // Habilita la gestión automática de createdAt y updatedAt
+    timestamps: true,  
 });
 
 module.exports = { User };

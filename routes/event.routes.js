@@ -1,9 +1,11 @@
+// Rutas de eventos
+// Gestiona la gestión completa de eventos, incluyendo registro y programación
+
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const eventController = require('../controllers/eventController');
 
-// Rutas de eventos
 router.get('/', eventController.getAllEvents);
 router.get('/search', eventController.searchEvents);
 router.get('/dashboard/search', eventController.searchAllEventsForDashboard); // Nueva ruta para buscar eventos en el dashboard

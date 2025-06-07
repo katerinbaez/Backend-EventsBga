@@ -1,3 +1,6 @@
+// Configuración de caché usando Redis
+// Implementa middleware para cachear respuestas de la API
+
 const Redis = require('ioredis');
 
 let redis;
@@ -15,11 +18,6 @@ try {
   console.error('Failed to initialize Redis:', error);
 }
 
-/**
- * Middleware para cachear respuestas de la API usando Redis
- * @param {number} duration - Duración del cache en segundos
- * @returns {Function} Middleware function
- */
 const cacheMiddleware = (duration) => {
   return async (req, res, next) => {
     if (!redis) {
@@ -27,7 +25,6 @@ const cacheMiddleware = (duration) => {
     }
 
     try {
-      // Crear una clave única basada en la URL y query params
       const key = `__express__${req.originalUrl}`;
       const cachedResponse = await redis.get(key);
 
@@ -35,7 +32,6 @@ const cacheMiddleware = (duration) => {
         return res.json(JSON.parse(cachedResponse));
       }
 
-      // Interceptar el método res.json para guardar la respuesta en cache
       res.originalJson = res.json;
       res.json = (body) => {
         try {
@@ -54,10 +50,7 @@ const cacheMiddleware = (duration) => {
   };
 };
 
-/**
- * Función para invalidar el cache de una ruta específica
- * @param {string} route - Ruta a invalidar
- */
+
 const invalidateCache = async (route) => {
   if (!redis) return;
   

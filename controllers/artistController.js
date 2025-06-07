@@ -1,11 +1,12 @@
+// Controlador para manejar operaciones relacionadas con artistas
+// Incluye registro, actualización y gestión de perfiles de artistas
+
 const { Artist } = require('../models/Artist');
 const path = require('path');
 const fs = require('fs');
 
-// Obtener la URL base para las imu00e1genes
 const getImageUrl = (filename) => {
     if (!filename) return null;
-    // Construir la URL relativa para acceder a la imagen
     return `/uploads/profile-pics/${filename}`;
 };
 
@@ -13,7 +14,6 @@ exports.registerArtist = async (req, res) => {
     try {
         const { userId } = req.body;
 
-        // Verificar si el artista ya existe
         const existingArtist = await Artist.findOne({ where: { userId } });
         if (existingArtist) {
             return res.status(400).json({
@@ -22,7 +22,6 @@ exports.registerArtist = async (req, res) => {
             });
         }
 
-        // Procesar los datos para crear el artista
         const artistData = {
             userId,
             nombreArtistico: req.body.nombreArtistico || '',
@@ -30,23 +29,17 @@ exports.registerArtist = async (req, res) => {
             isProfileComplete: false
         };
         
-        // Procesar habilidades
         if (req.body.habilidades) {
             try {
-                // Intentar parsear como JSON
                 artistData.habilidades = JSON.parse(req.body.habilidades);
             } catch (e) {
-                // Si no es JSON válido, verificar si es un string y convertirlo a array
                 if (typeof req.body.habilidades === 'string') {
-                    // Si es una cadena separada por comas, dividirla
                     if (req.body.habilidades.includes(',')) {
                         artistData.habilidades = req.body.habilidades.split(',').map(item => item.trim());
                     } else {
-                        // Si es una sola habilidad, crear un array con ella
                         artistData.habilidades = [req.body.habilidades.trim()];
                     }
                 } else {
-                    // Valor por defecto
                     artistData.habilidades = [];
                 }
             }
@@ -54,7 +47,6 @@ exports.registerArtist = async (req, res) => {
             artistData.habilidades = [];
         }
         
-        // Procesar portfolio
         try {
             artistData.portfolio = req.body.portfolio ? JSON.parse(req.body.portfolio) : {
                 trabajos: [],
@@ -67,7 +59,6 @@ exports.registerArtist = async (req, res) => {
             };
         }
         
-        // Procesar redes sociales
         try {
             artistData.redesSociales = req.body.redesSociales ? JSON.parse(req.body.redesSociales) : {
                 instagram: '',
@@ -84,7 +75,6 @@ exports.registerArtist = async (req, res) => {
             };
         }
         
-        // Procesar contacto
         try {
             artistData.contacto = req.body.contacto ? JSON.parse(req.body.contacto) : {
                 email: '',
@@ -99,12 +89,10 @@ exports.registerArtist = async (req, res) => {
             };
         }
         
-        // Si hay un archivo de imagen, guardar su URL
         if (req.file) {
             artistData.fotoPerfil = getImageUrl(req.file.filename);
         }
         
-        // Crear el artista
         const artist = await Artist.create(artistData);
 
         res.json({
@@ -160,105 +148,82 @@ exports.updateArtistProfile = async (req, res) => {
             });
         }
 
-        // Preparar los datos para actualizar
         const updatedData = {
             nombreArtistico: req.body.nombreArtistico,
             biografia: req.body.biografia,
-            isProfileComplete: true // Marcar como completo al actualizar
+            isProfileComplete: true 
         };
         
-        // Procesar habilidades
         if (req.body.habilidades) {
-            // Si ya es un array, usarlo directamente
             if (Array.isArray(req.body.habilidades)) {
                 updatedData.habilidades = req.body.habilidades;
             } else {
                 try {
-                    // Intentar parsear como JSON
                     updatedData.habilidades = JSON.parse(req.body.habilidades);
                 } catch (e) {
-                    // Si no es JSON válido, verificar si es un string y convertirlo a array
                     if (typeof req.body.habilidades === 'string') {
-                        // Si es una cadena separada por comas, dividirla
                         if (req.body.habilidades.includes(',')) {
                             updatedData.habilidades = req.body.habilidades.split(',').map(item => item.trim());
                         } else {
-                            // Si es una sola habilidad, crear un array con ella
                             updatedData.habilidades = [req.body.habilidades.trim()];
                         }
                     } else {
-                        // Mantener las habilidades existentes
                         updatedData.habilidades = artist.habilidades;
                     }
                 }
             }
         } else {
-            // Mantener las habilidades existentes
             updatedData.habilidades = artist.habilidades;
         }
         
-        // Procesar portfolio
         if (req.body.portfolio) {
-            // Si ya es un objeto, usarlo directamente
             if (typeof req.body.portfolio === 'object' && !Array.isArray(req.body.portfolio)) {
                 updatedData.portfolio = req.body.portfolio;
             } else {
                 try {
                     updatedData.portfolio = JSON.parse(req.body.portfolio);
                 } catch (e) {
-                    // Mantener el portfolio existente
                     updatedData.portfolio = artist.portfolio;
                 }
             }
         } else {
-            // Mantener el portfolio existente
+          
             updatedData.portfolio = artist.portfolio;
         }
         
-        // Procesar redes sociales
         if (req.body.redesSociales) {
-            // Si ya es un objeto, usarlo directamente
             if (typeof req.body.redesSociales === 'object' && !Array.isArray(req.body.redesSociales)) {
                 updatedData.redesSociales = req.body.redesSociales;
             } else {
                 try {
                     updatedData.redesSociales = JSON.parse(req.body.redesSociales);
                 } catch (e) {
-                    // Mantener las redes sociales existentes
                     updatedData.redesSociales = artist.redesSociales;
                 }
             }
         } else {
-            // Mantener las redes sociales existentes
             updatedData.redesSociales = artist.redesSociales;
         }
         
-        // Procesar contacto
         if (req.body.contacto) {
-            // Si ya es un objeto, usarlo directamente
             if (typeof req.body.contacto === 'object' && !Array.isArray(req.body.contacto)) {
                 updatedData.contacto = req.body.contacto;
             } else {
                 try {
                     updatedData.contacto = JSON.parse(req.body.contacto);
                 } catch (e) {
-                    // Mantener el contacto existente
                     updatedData.contacto = artist.contacto;
                 }
             }
         } else {
-            // Mantener el contacto existente
             updatedData.contacto = artist.contacto;
         }
         
-        // Si hay una foto de perfil en el cuerpo, mantenerla
         if (req.body.fotoPerfil) {
             updatedData.fotoPerfil = req.body.fotoPerfil;
         }
         
-        // Si hay un archivo de imagen nuevo
         if (req.file) {
-            // Eliminar la imagen anterior si existe
             if (artist.fotoPerfil) {
                 const oldImagePath = path.join(__dirname, '..', 'public', artist.fotoPerfil);
                 if (fs.existsSync(oldImagePath)) {
@@ -266,7 +231,6 @@ exports.updateArtistProfile = async (req, res) => {
                 }
             }
             
-            // Guardar la nueva URL de imagen
             updatedData.fotoPerfil = getImageUrl(req.file.filename);
         }
 
@@ -275,7 +239,7 @@ exports.updateArtistProfile = async (req, res) => {
         res.json({
             success: true,
             message: 'Perfil actualizado exitosamente',
-            artist: await Artist.findOne({ where: { userId } }) // Obtener el artista actualizado
+            artist: await Artist.findOne({ where: { userId } }) 
         });
     } catch (error) {
         console.error('Error al actualizar perfil de artista:', error);
@@ -287,10 +251,8 @@ exports.updateArtistProfile = async (req, res) => {
     }
 };
 
-// Obtener todos los perfiles de artistas
 exports.getAllArtists = async (req, res) => {
     try {
-        // Obtener todos los artistas con perfiles completos
         const artists = await Artist.findAll({
             where: {
                 isProfileComplete: true
@@ -314,7 +276,6 @@ exports.getAllArtists = async (req, res) => {
     }
 };
 
-// Subir imagen de perfil para un artista
 exports.uploadProfileImage = async (req, res) => {
     try {
         if (!req.file) {
@@ -333,7 +294,6 @@ exports.uploadProfileImage = async (req, res) => {
             });
         }
 
-        // Verificar si el artista existe
         const artist = await Artist.findOne({ where: { userId } });
         if (!artist) {
             return res.status(404).json({
@@ -342,7 +302,6 @@ exports.uploadProfileImage = async (req, res) => {
             });
         }
 
-        // Eliminar la imagen anterior si existe
         if (artist.fotoPerfil) {
             const oldImagePath = path.join(__dirname, '..', 'public', artist.fotoPerfil);
             if (fs.existsSync(oldImagePath)) {
@@ -350,10 +309,8 @@ exports.uploadProfileImage = async (req, res) => {
             }
         }
 
-        // Guardar la nueva URL de imagen
         const imageUrl = getImageUrl(req.file.filename);
         
-        // Actualizar el perfil del artista con la nueva URL de imagen
         await artist.update({ fotoPerfil: imageUrl });
 
         res.json({
@@ -371,20 +328,16 @@ exports.uploadProfileImage = async (req, res) => {
     }
 };
 
-// Obtener perfil de artista por ID
 exports.getArtistProfileById = async (req, res) => {
     try {
         const { artistId } = req.params;
 
-        // Intentar encontrar el artista por ID exacto
         let artist = await Artist.findOne({ where: { id: artistId } });
 
-        // Si no se encuentra, buscar por comparación de strings
         if (!artist) {
             console.log(`No se encontró artista con ID exacto ${artistId}, buscando alternativas...`);
             const allArtists = await Artist.findAll();
             
-            // Buscar un artista cuyo ID coincida con el artistId (como string)
             for (const a of allArtists) {
                 if (a.id.toString() === artistId.toString()) {
                     artist = a;
@@ -415,12 +368,10 @@ exports.getArtistProfileById = async (req, res) => {
     }
 };
 
-// Eliminar perfil de artista
 exports.deleteArtistProfile = async (req, res) => {
     try {
         const { userId } = req.params;
         
-        // Verificar si el artista existe
         const artist = await Artist.findOne({ where: { userId } });
         
         if (!artist) {
@@ -430,7 +381,6 @@ exports.deleteArtistProfile = async (req, res) => {
             });
         }
         
-        // Eliminar la imagen de perfil si existe
         if (artist.fotoPerfil) {
             const imagePath = artist.fotoPerfil.replace(/^\/uploads\/profile-pics\//, '');
             const fullPath = path.join(__dirname, '..', 'uploads', 'profile-pics', imagePath);
@@ -441,7 +391,6 @@ exports.deleteArtistProfile = async (req, res) => {
             }
         }
         
-        // Eliminar el perfil de artista
         await artist.destroy();
         
         res.json({

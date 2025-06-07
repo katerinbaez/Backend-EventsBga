@@ -1,10 +1,12 @@
+// Controlador de autenticación
+// Maneja el inicio de sesión y registro de usuarios
+
 const { User } = require('../models/User');
 
 exports.login = async (req, res) => {
     try {
         console.log("🔹 Datos recibidos en req.body:", req.body);
 
-        // Obtener los datos del usuario
         const { sub, email, name } = req.body;
 
         if (!sub || !email) {
@@ -13,7 +15,6 @@ exports.login = async (req, res) => {
 
         let user = await User.findOne({ where: { email } });
 
-        // Si el usuario no existe, créalo
         if (!user) {
             user = await User.create({ 
                 id: sub, 
@@ -23,7 +24,6 @@ exports.login = async (req, res) => {
             });
             console.log('✅ Usuario registrado:', user);
         } else {
-            // Si el usuario existe, actualiza sus datos
             await user.update({ 
                 name,
                 role: email === 'admin@eventsbga.com' ? 'admin' : user.role

@@ -1,3 +1,7 @@
+// Migración para agregar coordenadas a espacios culturales
+// Agrega columnas latitude y longitude con validaciones geográficas
+
+
 'use strict';
 
 module.exports = {

@@ -1,3 +1,6 @@
+// Controlador de solicitudes de roles
+// Maneja la creación, aprobación y gestión de solicitudes de roles
+
 const { RoleRequest } = require('../models/RoleRequest');
 const { User } = require('../models/User');
 const { Notification } = require('../models/Notification');
@@ -14,13 +17,9 @@ exports.approveRoleRequest = async (req, res) => {
         }
 
         if (approved) {
-            // Actualizar el estado de la solicitud
             await roleRequest.update({ estado: 'Aprobada' });
 
-            // Convertir el tipo de rol al formato esperado
             const roleType = roleRequest.rolSolicitado === 'Artista' ? 'artist' : 'manager';
-
-            // Crear notificación de aprobación
             const notificationData = {
                 userId: roleRequest.userId,
                 type: 'roleApproved',
@@ -45,10 +44,7 @@ exports.approveRoleRequest = async (req, res) => {
 
             res.json({ message: 'Solicitud aprobada exitosamente' });
         } else {
-            // Actualizar el estado de la solicitud a rechazada
             await roleRequest.update({ estado: 'Rechazada' });
-
-            // Convertir el tipo de rol al formato esperado
             const roleType = roleRequest.rolSolicitado === 'Artista' ? 'artist' : 'manager';
 
             // Crear notificación de rechazo

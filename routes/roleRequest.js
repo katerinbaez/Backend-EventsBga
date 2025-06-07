@@ -1,3 +1,6 @@
+// Rutas de solicitudes de roles
+// Gestiona la creación y gestión de solicitudes de roles de usuario
+
 const express = require('express');
 const router = express.Router();
 const { RoleRequest } = require('../models/RoleRequest');
@@ -5,7 +8,6 @@ const { User } = require('../models/User');
 const { authenticateToken } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
-// Crear una nueva solicitud de rol
 router.post('/', authenticateToken, async (req, res) => {
   try {
     console.log('Cuerpo de la solicitud:', req.body);
@@ -18,7 +20,6 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Se requiere el ID del usuario' });
     }
 
-    // Asegurarse de que portafolio y documentos sean arrays
     const processedPortafolio = Array.isArray(portafolio) ? portafolio : [];
     const processedDocumentos = Array.isArray(documentos) ? documentos : [];
 
@@ -42,12 +43,10 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Obtener todas las solicitudes (para admin)
 router.get('/', async (req, res) => {
   try {
     console.log('Headers recibidos:', req.headers);
     
-    // Verificar si es el admin por el header especial
     const isAdmin = req.headers['x-user-role'] === 'admin' && 
                    req.headers['x-user-email'] === 'admin@eventsbga.com';
 
@@ -68,7 +67,6 @@ router.get('/', async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
-    // Log para depuración
     requests.forEach(request => {
       const plainRequest = request.get({ plain: true });
       console.log('Solicitud:', {
@@ -79,15 +77,12 @@ router.get('/', async (req, res) => {
       });
     });
 
-    // Transformar los resultados para incluir el nombre del usuario
     const formattedRequests = requests.map(request => {
       const plainRequest = request.get({ plain: true });
       
-      // Asegurarse de que documentos y portafolio sean arrays
       const documentos = plainRequest.documentos || [];
       const portafolio = plainRequest.portafolio || [];
 
-      // Si documentos es un objeto, convertirlo a array
       const processedDocumentos = Array.isArray(documentos) ? 
         documentos : 
         Object.entries(documentos).map(([key, value]) => value);
@@ -113,7 +108,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Obtener solicitudes del usuario actual
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const requests = await RoleRequest.findAll({
@@ -128,10 +122,8 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
-// Actualizar estado de una solicitud (solo admin)
 router.patch('/:id/status', async (req, res) => {
   try {
-    // Verificar si es el admin por el header especial
     const isAdmin = req.headers['x-user-role'] === 'admin' && 
                    req.headers['x-user-email'] === 'admin@eventsbga.com';
 
@@ -150,14 +142,12 @@ router.patch('/:id/status', async (req, res) => {
     roleRequest.estado = estado;
     await roleRequest.save();
 
-    // Si la solicitud es aprobada, actualizar el rol del usuario
     if (estado === 'Aprobado') {
       const user = await User.findByPk(roleRequest.userId);
       if (!user) {
         throw new Error('Usuario no encontrado');
       }
 
-      // Actualizar el rol del usuario según la solicitud
       user.role = roleRequest.rolSolicitado;
       await user.save();
 

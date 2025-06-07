@@ -1,12 +1,13 @@
+// Controlador de eventos
+// Gestiona operaciones CRUD y transformaciones de eventos
+
 const { Op } = require('sequelize');
-// Importar los modelos directamente
 const Event = require('../models/Event');
 const CulturalSpace = require('../models/CulturalSpace');
 const { Artist } = require('../models/Artist');
 const { User } = require('../models/User');
 const EventRequest = require('../models/EventRequest');
 
-// Transformar evento al formato del frontend
 const transformEvent = (event) => ({
   id: event.id,
   titulo: event.titulo || 'Sin título',
@@ -33,7 +34,6 @@ const transformEvent = (event) => ({
   } : null
 });
 
-// Obtener todos los eventos
 exports.getAllEvents = async (req, res) => {
   try {
     const events = await Event.findAll({
@@ -58,7 +58,6 @@ exports.getAllEvents = async (req, res) => {
   }
 };
 
-// Actualizar un evento de forma simple sin restricciones
 exports.updateEventSimple = async (req, res) => {
   try {
     const { id } = req.params;
@@ -67,7 +66,6 @@ exports.updateEventSimple = async (req, res) => {
     console.log('Recibida solicitud para actualizar evento de forma simple:', id);
     console.log('Datos recibidos:', updateData);
     
-    // Verificar que el evento exista
     const evento = await Event.findByPk(id);
     if (!evento) {
       return res.status(404).json({
@@ -76,13 +74,12 @@ exports.updateEventSimple = async (req, res) => {
       });
     }
     
-    // Actualizar el evento con todos los datos proporcionados
     await evento.update(updateData);
     
     return res.status(200).json({
       success: true,
       message: 'Evento actualizado exitosamente',
-      event: await Event.findByPk(id) // Devolver el evento actualizado
+      event: await Event.findByPk(id) 
     });
     
   } catch (error) {
@@ -95,12 +92,10 @@ exports.updateEventSimple = async (req, res) => {
   }
 };
 
-// Eliminar un evento
 exports.deleteEvent = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Verificar que el evento exista
     const event = await Event.findByPk(id);
     
     if (!event) {
@@ -110,23 +105,18 @@ exports.deleteEvent = async (req, res) => {
       });
     }
     
-    // Verificar si se está usando el modo admin o manager mediante headers especiales
     const isAdminMode = req.query.isAdmin === 'true' || 
                        (req.headers['x-user-role'] === 'admin' && req.headers['x-user-email']);
     const isManagerMode = req.headers['x-user-role'] === 'manager' && req.headers['x-user-email'];
     
-    // Si es modo admin o manager, omitir verificación de permisos
     if (isAdminMode) {
       console.log('Modo admin activado: omitiendo verificación de permisos');
     } 
     else if (isManagerMode) {
       console.log('Modo manager activado: omitiendo verificación de permisos');
     }
-    // Si no es modo admin/manager y req.user existe, verificar permisos normalmente
     else if (req.user) {
-      // Verificar permisos (el creador, un manager o un admin puede eliminar)
       if (req.user.role !== 'admin' && req.user.role !== 'manager') {
-        // Si no es admin ni manager, verificar si es el creador
         if (event.managerId && event.managerId !== req.user.id) {
           return res.status(403).json({
             success: false,
@@ -135,7 +125,6 @@ exports.deleteEvent = async (req, res) => {
         }
       }
     }
-    // Si no es modo admin/manager y req.user no existe, rechazar la solicitud
     else {
       return res.status(401).json({
         success: false,
@@ -144,7 +133,6 @@ exports.deleteEvent = async (req, res) => {
     }
     
     try {
-      // Primero eliminar los registros asociados en EventAttendances
       const EventAttendance = require('../models/EventAttendance');
       await EventAttendance.destroy({
         where: { eventId: id }
@@ -152,7 +140,6 @@ exports.deleteEvent = async (req, res) => {
       
       console.log(`Registros de asistencia eliminados para el evento ${id}`);
       
-      // Luego eliminar el evento
       await event.destroy();
       
       return res.status(200).json({
@@ -177,7 +164,6 @@ exports.deleteEvent = async (req, res) => {
   }
 };
 
-// Buscar eventos
 exports.searchEvents = async (req, res) => {
   try {
     const { query, categoria, fechaInicio, fechaFin, location } = req.query;
@@ -198,7 +184,6 @@ exports.searchEvents = async (req, res) => {
 };
     }
 
-    // Opciones para incluir el espacio cultural
     const includeOptions = [
       { 
         model: CulturalSpace, 
@@ -212,7 +197,6 @@ exports.searchEvents = async (req, res) => {
       }
     ];
 
-    // Si se especifica una ubicación, filtrar por ella
     if (location) {
       includeOptions[0].where = {
         nombre: { [Op.iLike]: `%${location}%` }
@@ -232,12 +216,10 @@ exports.searchEvents = async (req, res) => {
   }
 };
 
-// Buscar todos los eventos para el dashboard del usuario (combina Events y EventRequests aprobados)
 exports.searchAllEventsForDashboard = async (req, res) => {
   try {
     const { query, categoria, fechaInicio, fechaFin, location } = req.query;
     
-    // Construir cláusulas de búsqueda para Events
     const eventsWhereClause = {};
     if (query) {
       eventsWhereClause[Op.or] = [
@@ -254,7 +236,6 @@ exports.searchAllEventsForDashboard = async (req, res) => {
 };
     }
 
-    // Opciones para incluir el espacio cultural
     const includeOptions = [
       { 
         model: CulturalSpace, 
@@ -263,21 +244,18 @@ exports.searchAllEventsForDashboard = async (req, res) => {
       }
     ];
 
-    // Si se especifica una ubicación, filtrar por ella
     if (location) {
       includeOptions[0].where = {
         nombre: { [Op.iLike]: `%${location}%` }
 };
     }
 
-    // Buscar eventos regulares
     const events = await Event.findAll({
       where: eventsWhereClause,
       include: includeOptions,
       order: [['createdAt', 'DESC']]
     });
 
-    // Construir cláusulas de búsqueda para EventRequests aprobados
     const eventRequestsWhereClause = {
       estado: 'aprobado'
 };
@@ -292,7 +270,6 @@ exports.searchAllEventsForDashboard = async (req, res) => {
       eventRequestsWhereClause.categoria = categoria;
     }
     
-    // Agregar filtro de fechas para EventRequests
     if (fechaInicio && fechaFin) {
       eventRequestsWhereClause.fecha = {
         [Op.between]: [
@@ -302,15 +279,12 @@ exports.searchAllEventsForDashboard = async (req, res) => {
 };
     }
     
-    // Buscar solicitudes de eventos aprobadas sin incluir el modelo User
     const eventRequests = await EventRequest.findAll({
       where: eventRequestsWhereClause,
       order: [['createdAt', 'DESC']]
     });
 
-    // Transformar los eventos regulares y asegurarnos de que incluyan toda la información necesaria
     const transformedEvents = await Promise.all(events.map(async (event) => {
-      // Buscar información del artista si es necesario
       let artistInfo = null;
       if (event.managerId) {
         try {
@@ -320,7 +294,6 @@ exports.searchAllEventsForDashboard = async (req, res) => {
           });
           
           if (artist) {
-            // Buscar el perfil de artista asociado a este usuario
             const artistProfile = await Artist.findOne({
               where: { userId: artist.id }
             });
@@ -335,24 +308,19 @@ exports.searchAllEventsForDashboard = async (req, res) => {
         }
       }
       
-      // Crear una copia del evento para transformarlo
       const eventData = event.toJSON();
       
-      // Añadir la información del artista si la encontramos
       if (artistInfo) {
         eventData.artist = artistInfo;
       }
       
-      // Transformar el evento
       const transformedEvent = transformEvent(eventData);
       
-      // Asegurarnos de que fechaInicio y fechaFin estén presentes
       if (event.fechaProgramada && !transformedEvent.fechaInicio) {
         transformedEvent.fechaInicio = event.fechaProgramada.toISOString();
       }
       
       if (event.fechaProgramada && !transformedEvent.fechaFin) {
-        // Añadir 2 horas por defecto para la duración del evento
         const fechaFin = new Date(event.fechaProgramada);
         fechaFin.setHours(fechaFin.getHours() + 2);
         transformedEvent.fechaFin = fechaFin.toISOString();
@@ -361,20 +329,16 @@ exports.searchAllEventsForDashboard = async (req, res) => {
       return transformedEvent;
     }));
 
-    // Transformar las solicitudes de eventos aprobadas
     const transformedEventRequests = await Promise.all(eventRequests.map(async (eventRequest) => {
-      // Buscar información del artista por separado
       let artist = null;
       if (eventRequest.artistId) {
         try {
-          // Buscar el usuario
           const user = await User.findOne({
             where: { id: eventRequest.artistId },
             attributes: ['id', 'name', 'email']
           });
           
           if (user) {
-            // Buscar el perfil de artista asociado a este usuario
             const artistProfile = await Artist.findOne({
               where: { userId: user.id }
             });
@@ -386,7 +350,6 @@ exports.searchAllEventsForDashboard = async (req, res) => {
           }
         } catch (error) {
           console.error('Error al buscar información del artista:', error);
-          // Si hay un error, usar el ID como respaldo
           artist = {
             id: eventRequest.artistId,
             nombreArtistico: 'Artista'
@@ -394,7 +357,6 @@ exports.searchAllEventsForDashboard = async (req, res) => {
         }
       }
       
-      // Buscar información del espacio cultural por separado
       let space = null;
       if (eventRequest.spaceId) {
         try {
@@ -406,24 +368,21 @@ exports.searchAllEventsForDashboard = async (req, res) => {
         }
       }
 
-      // Crear fecha de inicio
       const fechaInicio = eventRequest.fecha && eventRequest.horaInicio 
         ? new Date(eventRequest.fecha + 'T' + eventRequest.horaInicio) 
         : null;
         
-      // Crear fecha de fin
       const fechaFin = eventRequest.fecha && eventRequest.horaFin 
         ? new Date(eventRequest.fecha + 'T' + eventRequest.horaFin) 
         : null;
 
-      // Transformar la solicitud al formato de evento
       return {
         id: eventRequest.id,
         titulo: eventRequest.titulo || 'Sin título',
         descripcion: eventRequest.descripcion || 'Sin descripción',
         fechaInicio: fechaInicio,
         fechaFin: fechaFin,
-        fechaProgramada: fechaInicio, // Agregar fechaProgramada para compatibilidad con el frontend
+        fechaProgramada: fechaInicio, 
         categoria: eventRequest.categoria || 'General',
         estado: eventRequest.estado || 'pendiente',
         space: space ? {
@@ -441,17 +400,14 @@ exports.searchAllEventsForDashboard = async (req, res) => {
 };
     }));
 
-    // Combinar ambos conjuntos de eventos
     const allEvents = [...transformedEvents, ...transformedEventRequests];
 
-    // Ordenar por fecha de creación (más recientes primero)
     allEvents.sort((a, b) => {
       const dateA = a.fechaInicio || new Date(0);
       const dateB = b.fechaInicio || new Date(0);
       return dateB - dateA;
     });
 
-    // Devolver la respuesta en el formato esperado por el frontend
     return res.status(200).json({
       success: true,
       events: allEvents
@@ -466,20 +422,19 @@ exports.searchAllEventsForDashboard = async (req, res) => {
   }
 };
 
-// Obtener eventos aprobados para programación
+
 exports.getApprovedEvents = async (req, res) => {
   try {
     const approvedEvents = await Event.findAll({
       where: {
         estado: 'aprobado'
       },
-      limit: 10, // Limitar a 10 eventos para evitar sobrecarga
+      limit: 10, 
       order: [['fechaInicio', 'DESC']]
     });
     
     console.log(`Se encontraron ${approvedEvents.length} eventos aprobados`);
     
-    // Transformar los eventos sin incluir relaciones
     const transformedEvents = approvedEvents.map(event => ({
       id: event.id,
       titulo: event.titulo || 'Sin título',
@@ -508,7 +463,6 @@ exports.getApprovedEvents = async (req, res) => {
   }
 };
 
-// Programar un evento aprobado
 exports.scheduleEvent = async (req, res) => {
   try {
     const eventId = req.params.id;
@@ -521,7 +475,6 @@ exports.scheduleEvent = async (req, res) => {
       });
     }
     
-    // Buscar el evento
     const event = await Event.findByPk(eventId);
     
     if (!event) {
@@ -538,12 +491,8 @@ exports.scheduleEvent = async (req, res) => {
       });
     }
     
-    // Actualizar el evento con la fecha programada
-    // Asegurarnos de que la fecha se guarde correctamente sin ajustes de zona horaria
     const dateTime = new Date(scheduledDateTime);
     
-    // Ajustar la fecha para compensar la diferencia de zona horaria
-    // Esto garantiza que la fecha se guarde como se ingresó, sin desplazamiento
     const offset = dateTime.getTimezoneOffset();
     const adjustedDate = new Date(dateTime.getTime() + (offset * 60 * 1000));
     
@@ -571,12 +520,10 @@ exports.scheduleEvent = async (req, res) => {
   }
 };
 
-// Obtener detalle de un evento
 exports.getEventById = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Primero, intentar encontrar en la tabla Event
     try {
       const event = await Event.findByPk(id, {
         include: [
@@ -594,7 +541,6 @@ exports.getEventById = async (req, res) => {
       });
       
       if (event) {
-        // Buscar información del artista si es necesario
         let artistInfo = null;
         if (event.managerId) {
           try {
@@ -604,7 +550,6 @@ exports.getEventById = async (req, res) => {
             });
             
             if (artist) {
-              // Buscar el perfil de artista asociado a este usuario
               const artistProfile = await Artist.findOne({
                 where: { userId: artist.id }
               });
@@ -619,33 +564,26 @@ exports.getEventById = async (req, res) => {
           }
         }
         
-        // Crear una copia del evento para transformarlo
         const eventData = event.toJSON();
         
-        // Añadir la información del artista si la encontramos
         if (artistInfo) {
           eventData.artist = artistInfo;
         }
         
-        // Usar la función transformEvent para mantener consistencia
         const transformedEvent = transformEvent(eventData);
         
-        // Asegurarnos de que fechaInicio y fechaFin estén presentes
         if (event.fechaProgramada && !transformedEvent.fechaInicio) {
           transformedEvent.fechaInicio = event.fechaProgramada.toISOString();
         }
         
         if (event.fechaProgramada && !transformedEvent.fechaFin) {
-          // Añadir 2 horas por defecto para la duración del evento
           const fechaFin = new Date(event.fechaProgramada);
           fechaFin.setHours(fechaFin.getHours() + 2);
           transformedEvent.fechaFin = fechaFin.toISOString();
         }
         
-        // Añadir campos adicionales específicos para este endpoint
         transformedEvent.estado = event.estado || 'pendiente';
         
-        // Asegurarnos de que la información del espacio esté completa
         if (event.space) {
           transformedEvent.space = {
             id: event.space.id,
@@ -667,14 +605,12 @@ exports.getEventById = async (req, res) => {
       console.error('Error al buscar en eventos:', eventError);
     }
     
-    // Si no se encontró en la tabla Event, buscar en EventRequest
     try {
       const eventRequest = await EventRequest.findByPk(id);
       
       if (eventRequest) {
         console.log(`Solicitud de evento encontrada: ${eventRequest.titulo}`);
         
-        // Buscar el espacio cultural asociado
         let space = null;
         if (eventRequest.spaceId) {
           space = await CulturalSpace.findByPk(eventRequest.spaceId, {
@@ -682,18 +618,15 @@ exports.getEventById = async (req, res) => {
           });
         }
         
-        // Buscar información del artista por separado
         let artist = null;
         if (eventRequest.artistId) {
           try {
-            // Buscar el usuario
             const user = await User.findOne({
               where: { id: eventRequest.artistId },
               attributes: ['id', 'name', 'email']
             });
             
             if (user) {
-              // Buscar el perfil de artista asociado a este usuario
               const artistProfile = await Artist.findOne({
                 where: { userId: user.id }
               });
@@ -705,13 +638,11 @@ exports.getEventById = async (req, res) => {
             }
           } catch (error) {
             console.error('Error al buscar información del artista:', error);
-            // Si hay un error, usar el ID como respaldo
             artist = {
               id: eventRequest.artistId,
               nombreArtistico: 'Artista'
             };
 
-// Actualizar un evento de forma simple sin restricciones
 exports.updateEventSimple = async (req, res) => {
   try {
     const { id } = req.params;
@@ -720,7 +651,6 @@ exports.updateEventSimple = async (req, res) => {
     console.log('Recibida solicitud para actualizar evento de forma simple:', id);
     console.log('Datos recibidos:', updateData);
     
-    // Verificar que el evento exista
     const evento = await Event.findByPk(id);
     if (!evento) {
       return res.status(404).json({
@@ -729,13 +659,12 @@ exports.updateEventSimple = async (req, res) => {
       });
     }
     
-    // Actualizar el evento con todos los datos proporcionados
     await evento.update(updateData);
     
     return res.status(200).json({
       success: true,
       message: 'Evento actualizado exitosamente',
-      event: await Event.findByPk(id) // Devolver el evento actualizado
+      event: await Event.findByPk(id) 
     });
     
   } catch (error) {
@@ -750,24 +679,21 @@ exports.updateEventSimple = async (req, res) => {
           }
         }
         
-        // Crear fecha de inicio
         const fechaInicio = eventRequest.fecha && eventRequest.horaInicio 
           ? new Date(eventRequest.fecha + 'T' + eventRequest.horaInicio) 
           : null;
           
-        // Crear fecha de fin
         const fechaFin = eventRequest.fecha && eventRequest.horaFin 
           ? new Date(eventRequest.fecha + 'T' + eventRequest.horaFin) 
           : null;
         
-        // Transformar la solicitud al formato de evento
         const transformedEvent = {
           id: eventRequest.id,
           titulo: eventRequest.titulo || 'Sin título',
           descripcion: eventRequest.descripcion || 'Sin descripción',
           fechaInicio: fechaInicio,
           fechaFin: fechaFin,
-          fechaProgramada: fechaInicio, // Agregar fechaProgramada para compatibilidad con el frontend
+          fechaProgramada: fechaInicio, 
           categoria: eventRequest.categoria || 'General',
           estado: eventRequest.estado || 'pendiente',
           space: space ? {
@@ -795,7 +721,6 @@ exports.updateEventSimple = async (req, res) => {
       console.error('Error al buscar en solicitudes de eventos:', requestError);
     }
     
-    // Si no se encontró en ninguna de las tablas, devolver error
     return res.status(404).json({ 
       success: false,
       message: 'Evento no encontrado' 
@@ -810,13 +735,11 @@ exports.updateEventSimple = async (req, res) => {
   }
 };
 
-// Registrar un artista a un evento
 exports.registerToEvent = async (req, res) => {
   try {
     const { id } = req.params;
     const { artistId } = req.body;
     
-    // Verificar si el evento existe
     const event = await Event.findByPk(id);
     if (!event) {
       return res.status(404).json({ 
@@ -825,7 +748,6 @@ exports.registerToEvent = async (req, res) => {
       });
     }
     
-    // Verificar si el artista ya está registrado
     const registeredArtists = event.registeredArtists || [];
     if (registeredArtists.includes(artistId)) {
       return res.status(400).json({ 
@@ -834,7 +756,6 @@ exports.registerToEvent = async (req, res) => {
       });
     }
     
-    // Verificar si hay capacidad disponible
     if (registeredArtists.length >= event.capacity) {
       return res.status(400).json({ 
         success: false, 
@@ -842,7 +763,6 @@ exports.registerToEvent = async (req, res) => {
       });
     }
     
-    // Registrar al artista
     event.registeredArtists = [...registeredArtists, artistId];
     await event.save();
     
@@ -861,12 +781,10 @@ exports.registerToEvent = async (req, res) => {
   }
 };
 
-// Obtener artistas registrados en un evento
 exports.getRegisteredArtists = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Verificar si el evento existe
     const event = await Event.findByPk(id);
     if (!event) {
       return res.status(404).json({ 
@@ -875,10 +793,8 @@ exports.getRegisteredArtists = async (req, res) => {
       });
     }
     
-    // Obtener los IDs de artistas registrados
     const registeredArtistIds = event.registeredArtists || [];
     
-    // Si no hay artistas registrados, devolver array vacío
     if (registeredArtistIds.length === 0) {
       return res.status(200).json({ 
         success: true, 
@@ -886,7 +802,6 @@ exports.getRegisteredArtists = async (req, res) => {
       });
     }
     
-    // Buscar los datos de los artistas
     const artists = await User.findAll({
       where: {
         id: {

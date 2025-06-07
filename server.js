@@ -1,3 +1,6 @@
+// Servidor principal del backend
+// Configura Express, rutas y manejo de errores
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -28,17 +31,14 @@ const { setupAssociations } = require('./models/associations');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware para parsear JSON y datos de formularios
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Configurar servidor para servir archivos estáticos (imágenes)
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Configuración de CORS con headers personalizados
 app.use(cors({
-  origin: '*', // Permite cualquier origen porque la app móvil no está limitada por CORS
+  origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: [
     'Content-Type',
@@ -47,17 +47,14 @@ app.use(cors({
     'x-user-role',
     'x-user-email'
   ]
-  // NO uses credentials: true si usas origin: '*'
 }));
 
-// Caché para evitar logs repetitivos
 const requestCache = {
     requests: new Map(),
-    maxSize: 100, // Tamaño máximo de la caché
-    ttl: 60000 // Tiempo de vida de 1 minuto para cada entrada
+    maxSize: 100, 
+    ttl: 60000 
 };
 
-// Función para limpiar entradas antiguas de la caché
 setInterval(() => {
     const now = Date.now();
     for (const [key, value] of requestCache.requests.entries()) {
@@ -65,31 +62,24 @@ setInterval(() => {
             requestCache.requests.delete(key);
         }
     }
-}, 60000); // Limpiar cada minuto
+}, 60000); 
 
-// Middleware para registrar todas las solicitudes (evitando repeticiones)
 app.use((req, res, next) => {
-    // Crear una clave única para esta solicitud
     const cacheKey = `${req.method}:${req.path}`;
     
-    // Verificar si esta solicitud ya se ha registrado recientemente
     const cachedRequest = requestCache.requests.get(cacheKey);
     const now = Date.now();
     
-    // Solo registrar si es una nueva solicitud o ha pasado suficiente tiempo desde la última vez
-    if (!cachedRequest || (now - cachedRequest.timestamp > 5000)) { // 5 segundos entre logs de la misma ruta
+    if (!cachedRequest || (now - cachedRequest.timestamp > 5000)) { 
         console.log('\n Nueva solicitud:');
         console.log(' Método:', req.method);
         console.log(' Ruta:', req.path);
         console.log(' Cuerpo:', req.body);
         console.log(' Headers:', req.headers);
         
-        // Actualizar la caché
         requestCache.requests.set(cacheKey, { timestamp: now });
         
-        // Limitar el tamaño de la caché
         if (requestCache.requests.size > requestCache.maxSize) {
-            // Eliminar la entrada más antigua
             const oldestKey = Array.from(requestCache.requests.keys())[0];
             requestCache.requests.delete(oldestKey);
         }
@@ -98,50 +88,36 @@ app.use((req, res, next) => {
     next();
 });
 
-// Rutas de autenticación
 app.use('/auth', authRoutes);
 
-// Rutas de la API
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/metrics', metricsRoutes);
 
-// Para las rutas de role-requests
 app.use('/api/role-requests', roleRequestRoutes);
 
-// Rutas de artistas
 app.use('/api/artists', artistRoutes);
 
-// Rutas de gestores culturales
 app.use('/api/managers', managerRoutes);
 
-// Rutas de espacios culturales
 app.use('/api/cultural-spaces', culturalSpaceRoutes);
 
-// Rutas para gestión de espacios y horarios
 app.use('/api/spaces', spaceRoutes);
 
-// Rutas de usuarios
 app.use('/api/users', userRoutes);
 
-// Rutas para solicitudes de eventos
 app.use('/api/event-requests', eventRequestRoutes);
 
-// Rutas para disponibilidad de espacios
 app.use('/api/space-availabilities', spaceAvailabilityRoutes);
 
-// Rutas para horarios bloqueados
 app.use('/api/blocked-slots', blockedSlotRoutes);
 
-// Rutas para eventos creados por gestores
 app.use('/api/manager-events', managerEventRoutes);
 
-// Rutas para asistencias a eventos
 app.use('/api/event-attendances', eventAttendanceRoutes);
 
-// Ruta de prueba de autenticación
 app.get('/auth-test', authenticateToken, (req, res) => {
     console.log(' Token decodificado:', req.auth);
     res.json({ 
@@ -150,24 +126,19 @@ app.get('/auth-test', authenticateToken, (req, res) => {
     });
 });
 
-// Middleware de manejo de errores de autenticación
 app.use(handleAuthError);
 
-// Ruta de prueba
 app.post('/debug', (req, res) => {
     console.log(' Petición recibida en /debug:', req.body);
     res.json({ message: 'Datos recibidos correctamente', data: req.body });
 });
 
-// Ruta de estado del servidor
 app.get('/status', (req, res) => {
     res.json({ status: 'online', message: 'Backend: Conectado ' });
 });
 
-// Configurar asociaciones
 setupAssociations();
 
-// Sincronizar base de datos solo si no estamos en modo de prueba
 if (process.env.NODE_ENV !== 'test') {
     sequelize.sync({ alter: true }).then(() => {
         console.log('✅ Base de datos sincronizada');
@@ -175,18 +146,14 @@ if (process.env.NODE_ENV !== 'test') {
         console.error('❌ Error al sincronizar la base de datos:', error);
     });
 } else {
-    // En modo de prueba, usamos una sincronización más simple y sin logging
     sequelize.sync({ force: false }).catch(() => {});
 }
 
-// Middleware de manejo de errores
 app.use((err, req, res, next) => {
     console.error(' Error en la API:', err.message);
     console.error('Stack trace:', err.stack);
     
-    // Errores de autenticación
     if (err.name === 'UnauthorizedError') {
-        // Si es admin, permitimos el paso
         if (req.headers['x-user-role'] === 'admin' && 
             req.headers['x-user-email'] === 'admin@eventsbga.com') {
             return next();
@@ -197,7 +164,6 @@ app.use((err, req, res, next) => {
         });
     }
 
-    // Error de validación de Sequelize
     if (err.name === 'SequelizeValidationError') {
         return res.status(400).json({ 
             error: 'Error de validación',
@@ -205,7 +171,6 @@ app.use((err, req, res, next) => {
         });
     }
 
-    // Error único de Sequelize (e.g., email duplicado)
     if (err.name === 'SequelizeUniqueConstraintError') {
         return res.status(409).json({ 
             error: 'El recurso ya existe',
@@ -213,7 +178,6 @@ app.use((err, req, res, next) => {
         });
     }
 
-    // Error general
     res.status(500).json({ 
         error: 'Error interno del servidor',
         details: err.message
@@ -228,38 +192,29 @@ if (process.env.NODE_ENV !== 'test') {
     });
 }
 */
-// Crear servidores HTTP y HTTPS que podamos cerrar durante las pruebas
 let httpServer;
 let httpsServer;
 
-// Si no estamos en modo de prueba, iniciar los servidores normalmente
 if (process.env.NODE_ENV !== 'test') {
-    // Iniciar servidor HTTP
     httpServer = http.createServer(app);
     httpServer.listen(PORT, '0.0.0.0', () => {
         console.log(`\n🚀 Servidor HTTP corriendo en http://localhost:${PORT}`);
         console.log(` También accesible en http://192.168.1.7:${PORT}`);
     });
     
-    // En producción (Railway, Heroku, etc.), estos servicios manejan HTTPS automáticamente
-    // No necesitamos configurar HTTPS manualmente, ya que el proveedor de hosting lo hace por nosotros
     console.log('\n📝 Nota: En producción, el proveedor de hosting (Railway, Heroku, etc.) maneja HTTPS automáticamente');
     console.log('No es necesario configurar certificados SSL manualmente para despliegue en producción.');
     
-    // Si estamos en desarrollo local y queremos probar con HTTPS
     if (process.env.NODE_ENV === 'development') {
         try {
-            // Ruta a los certificados (debes crearlos primero)
             const privateKeyPath = './certificates/key.pem';
             const certificatePath = './certificates/cert.pem';
             
-            // Verificar si existen los certificados
             if (fs.existsSync(privateKeyPath) && fs.existsSync(certificatePath)) {
                 const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
                 const certificate = fs.readFileSync(certificatePath, 'utf8');
                 const credentials = { key: privateKey, cert: certificate };
                 
-                // Crear servidor HTTPS
                 httpsServer = https.createServer(credentials, app);
                 const HTTPS_PORT = process.env.HTTPS_PORT || 5443;
                 
@@ -273,12 +228,8 @@ if (process.env.NODE_ENV !== 'test') {
         }
     }
     
-    // Exportar solo la aplicación en modo normal
     module.exports = app;
 } else {
-    // En modo de prueba, exportamos la aplicación y la función para cerrar
-    
-    // Función para cerrar los servidores y las conexiones
     const closeServer = async () => {
         if (httpServer) {
             await new Promise((resolve) => httpServer.close(resolve));
@@ -289,6 +240,5 @@ if (process.env.NODE_ENV !== 'test') {
         await sequelize.close();
     };
     
-    // Exportar la aplicación para pruebas
     module.exports = app;
 }

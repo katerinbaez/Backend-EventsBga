@@ -1,13 +1,11 @@
+// Rutas de usuarios
+// Gestiona la creación, actualización y eliminación de usuarios
+
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const { authenticateToken } = require('../middleware/auth');
 
-// Rutas públicas
-// Ninguna por ahora
-
-// Rutas protegidas (requieren autenticación)
-// Solo los administradores pueden acceder a estas rutas
 router.get('/', authenticateToken, userController.getAllUsers);
 router.get('/:id', authenticateToken, userController.getUserById);
 router.post('/', authenticateToken, userController.createUser);
